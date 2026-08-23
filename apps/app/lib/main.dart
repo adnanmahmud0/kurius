@@ -4,9 +4,13 @@ import 'package:get/get.dart';
 import 'app/bindings/initial_binding.dart';
 import 'app/routes/app_pages.dart';
 import 'app/theme/app_theme.dart';
+import 'core/storage/storage_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Storage Service
+  await Get.putAsync(() => StorageService().init());
 
   // Set preferred system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
