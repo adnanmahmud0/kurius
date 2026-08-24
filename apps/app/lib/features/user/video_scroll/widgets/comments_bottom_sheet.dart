@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../app/routes/app_routes.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/storage/storage_service.dart';
 import '../controllers/video_scroll_controller.dart';
 
 void showCommentsBottomSheet(BuildContext context) {
   final controller = Get.find<VideoScrollController>();
+  final storage = Get.isRegistered<StorageService>() ? Get.find<StorageService>() : StorageService.to;
+  final isLoggedIn = storage.isLoggedIn();
 
   showModalBottomSheet(
     context: context,
@@ -63,112 +67,169 @@ void showCommentsBottomSheet(BuildContext context) {
             // Comments List
             Expanded(
               child: Obx(
-                () => ListView.separated(
-                  padding: const EdgeInsets.all(20),
-                  itemCount: controller.comments.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final comment = controller.comments[index];
-
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: AppColors.pillBackground,
-                          child: Text(
-                            comment.avatarLetter,
+                () {
+                  if (controller.comments.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.chat_bubble_outline_rounded,
+                              size: 40, color: AppColors.textMuted),
+                          const SizedBox(height: 10),
+                          Text(
+                            'No information found',
                             style: GoogleFonts.outfit(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    comment.userName,
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    comment.timeAgo,
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                comment.comment,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  color: AppColors.textPrimary,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 4),
+                          Text(
+                            'Be the first to share your thoughts!',
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              color: AppColors.textMuted,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     );
-                  },
-                ),
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(20),
+                    itemCount: controller.comments.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final comment = controller.comments[index];
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: AppColors.pillBackground,
+                            child: Text(
+                              comment.avatarLetter,
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      comment.userName,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      comment.timeAgo,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  comment.comment,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 14,
+                                    color: AppColors.textPrimary,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
               ),
             ),
 
-            // Comment input bar
+            // Comment input bar / Sign In prompt if not logged in
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.white,
                 border: Border(top: BorderSide(color: AppColors.cardBorder)),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardBackground,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: AppColors.cardBorder),
-                      ),
-                      child: TextField(
-                        controller: controller.commentInputController,
-                        style: GoogleFonts.outfit(fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: 'Add a comment...',
-                          hintStyle: GoogleFonts.outfit(
-                            fontSize: 14,
-                            color: AppColors.textMuted,
+              child: isLoggedIn
+                  ? Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: AppColors.cardBackground,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: AppColors.cardBorder),
+                            ),
+                            child: TextField(
+                              controller: controller.commentInputController,
+                              style: GoogleFonts.outfit(fontSize: 14),
+                              decoration: InputDecoration(
+                                hintText: 'Add a comment...',
+                                hintStyle: GoogleFonts.outfit(
+                                  fontSize: 14,
+                                  color: AppColors.textMuted,
+                                ),
+                                border: InputBorder.none,
+                              ),
+                              onSubmitted: (val) => controller.addComment(val),
+                            ),
                           ),
-                          border: InputBorder.none,
                         ),
-                        onSubmitted: (val) => controller.addComment(val),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.send_rounded, color: AppColors.primary),
+                          onPressed: () =>
+                              controller.addComment(controller.commentInputController.text),
+                        ),
+                      ],
+                    )
+                  : SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Get.toNamed(AppRoutes.auth);
+                        },
+                        icon: const Icon(Icons.lock_outline_rounded, size: 18),
+                        label: Text(
+                          'Sign In / Register to Comment',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.send_rounded, color: AppColors.primary),
-                    onPressed: () =>
-                        controller.addComment(controller.commentInputController.text),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
