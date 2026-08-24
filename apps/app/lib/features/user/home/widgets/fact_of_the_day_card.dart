@@ -44,11 +44,15 @@ class FactOfTheDayCard extends GetView<HomeController> {
                 flex: 6,
                 child: Obx(
                   () => Text(
-                    controller.factOfTheDay.value,
+                    controller.factOfTheDay.value.isNotEmpty
+                        ? controller.factOfTheDay.value
+                        : 'No information found',
                     style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: controller.factOfTheDay.value.isNotEmpty
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
                       height: 1.35,
                     ),
                   ),

@@ -1,74 +1,94 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../models/home_models.dart';
+import '../../../../core/network/api_exceptions.dart';
+import '../../../../core/network/error_handler.dart';
+import '../../../../data/models/category/category_model.dart';
+import '../../../../data/models/video/video_item_model.dart';
+import '../../../../data/repositories/category_repository.dart';
+import '../../../../data/repositories/video_repository.dart';
 
 class HomeController extends GetxController {
+  final VideoRepository? videoRepository;
+  final CategoryRepository? categoryRepository;
+
+  HomeController({
+    this.videoRepository,
+    this.categoryRepository,
+  });
+
   // Bottom Navigation Index: 0 = Start, 1 = Explore
   final RxInt selectedNavIndex = 0.obs;
 
-  // Selected Category
-  final RxString selectedCategoryId = 'mythology'.obs;
+  // Selected Category ID
+  final RxString selectedCategoryId = ''.obs;
 
   // Fact of the Day
-  final RxString factOfTheDay =
-      'The human eye can distinguish more than 10 million colors.'.obs;
+  final RxString factOfTheDay = ''.obs;
 
-  // Categories List
-  final RxList<CategoryModel> categories = <CategoryModel>[
-    const CategoryModel(
-      id: 'mythology',
-      title: 'Mythology',
-      icon: Icons.account_balance_rounded,
-      color: AppColors.orangeAccent,
-    ),
-    const CategoryModel(
-      id: 'history',
-      title: 'History',
-      icon: Icons.auto_stories_rounded,
-      color: Color(0xFF6C83E2),
-    ),
-    const CategoryModel(
-      id: 'science',
-      title: 'Science',
-      icon: Icons.science_rounded,
-      color: Color(0xFF10B981),
-    ),
-    const CategoryModel(
-      id: 'space',
-      title: 'Space',
-      icon: Icons.rocket_launch_rounded,
-      color: Color(0xFF8B5CF6),
-    ),
-  ].obs;
+  // Loading, Unauthorized and Error States
+  final RxBool isLoading = false.obs;
+  final RxBool isUnauthorized = false.obs;
+  final RxString errorMessage = ''.obs;
 
-  // Latest Videos
-  final RxList<VideoItemModel> latestVideos = <VideoItemModel>[
-    const VideoItemModel(
-      id: 'video_1',
-      title: 'Hermes: The Messenger of the...',
-      category: 'Greek Mythology',
-      imageUrl:
-          'https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=600&auto=format&fit=crop',
-      duration: '0:45',
-    ),
-    const VideoItemModel(
-      id: 'video_2',
-      title: 'Kairos: the god of the i...',
-      category: 'Greek Mythology',
-      imageUrl:
-          'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop',
-      duration: '1:12',
-    ),
-    const VideoItemModel(
-      id: 'video_3',
-      title: 'Apollo: God of the Sun & Music',
-      category: 'Greek Mythology',
-      imageUrl:
-          'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?q=80&w=600&auto=format&fit=crop',
-      duration: '0:58',
-    ),
-  ].obs;
+  // Dynamic Categories and Videos from API
+  final RxList<CategoryModel> categories = <CategoryModel>[].obs;
+  final RxList<VideoItemModel> latestVideos = <VideoItemModel>[].obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    loadHomeData();
+  }
+
+  Future<void> loadHomeData() async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    isUnauthorized.value = false;
+
+    final catRepo = categoryRepository ??
+        (Get.isRegistered<CategoryRepository>()
+            ? Get.find<CategoryRepository>()
+            : null);
+    final vidRepo = videoRepository ??
+        (Get.isRegistered<VideoRepository>()
+            ? Get.find<VideoRepository>()
+            : null);
+
+    // 1. Fetch public categories
+    if (catRepo != null) {
+      try {
+        final catResponse = await catRepo.getCategories();
+        categories.value = catResponse.data ?? [];
+        if (categories.isNotEmpty && selectedCategoryId.value.isEmpty) {
+          selectedCategoryId.value = categories.first.id;
+        }
+      } catch (e) {
+        debugPrint('⚠️ [HomeController.loadHomeData] Categories fetch note: $e');
+      }
+    }
+
+    // 2. Fetch latest videos (Requires Auth)
+    if (vidRepo != null) {
+      try {
+        final vidResponse = await vidRepo.fetchVideos(limit: 10);
+        latestVideos.value = vidResponse.data ?? [];
+        isUnauthorized.value = false;
+      } on UnauthorizedException {
+        debugPrint('🔒 [HomeController.loadHomeData] User is not authenticated. Showing sign-in state.');
+        isUnauthorized.value = true;
+        latestVideos.value = [];
+      } catch (e) {
+        debugPrint('⚠️ [HomeController.loadHomeData] Failed to load videos: $e');
+        if (e.toString().contains('401') || e.toString().toLowerCase().contains('authorized')) {
+          isUnauthorized.value = true;
+        } else {
+          errorMessage.value = ErrorHandler.getErrorMessage(e);
+        }
+      }
+    }
+
+    isLoading.value = false;
+  }
 
   void setNavIndex(int index) {
     selectedNavIndex.value = index;
@@ -76,5 +96,9 @@ class HomeController extends GetxController {
 
   void selectCategory(String categoryId) {
     selectedCategoryId.value = categoryId;
+  }
+
+  Future<void> refreshHome() async {
+    await loadHomeData();
   }
 }

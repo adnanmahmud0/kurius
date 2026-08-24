@@ -21,10 +21,40 @@ class CategoriesSection extends GetView<HomeController> {
           ),
         ),
         const SizedBox(height: 14),
-        SizedBox(
-          height: 100,
-          child: Obx(
-            () => ListView.separated(
+        Obx(() {
+          if (controller.isLoading.value && controller.categories.isEmpty) {
+            return const SizedBox(
+              height: 80,
+              child: Center(
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+              ),
+            );
+          }
+
+          if (controller.categories.isEmpty) {
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppColors.cardBackground,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: Center(
+                child: Text(
+                  'No categories found',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return SizedBox(
+            height: 100,
+            child: ListView.separated(
               scrollDirection: Axis.horizontal,
               clipBehavior: Clip.none,
               itemCount: controller.categories.length,
@@ -38,30 +68,28 @@ class CategoriesSection extends GetView<HomeController> {
                   onTap: () => controller.selectCategory(category.id),
                   child: Column(
                     children: [
-                      // Circular Icon Container
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         width: 58,
                         height: 58,
                         decoration: BoxDecoration(
-                          color: category.color,
+                          color: category.displayColor,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: category.color.withValues(alpha: 0.35),
+                              color: category.displayColor.withValues(alpha: 0.35),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
                           ],
                         ),
                         child: Icon(
-                          category.icon,
+                          category.displayIcon,
                           color: Colors.white,
                           size: 28,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // Category Title
                       Text(
                         category.title,
                         style: GoogleFonts.outfit(
@@ -76,8 +104,8 @@ class CategoriesSection extends GetView<HomeController> {
                 );
               },
             ),
-          ),
-        ),
+          );
+        }),
       ],
     );
   }
