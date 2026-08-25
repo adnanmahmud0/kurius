@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   FileText,
+  Film,
   FolderTree,
   HardDrive,
   Home,
@@ -53,6 +54,11 @@ const mainNavItems = [
 ];
 
 const settingsNavItems = [
+  {
+    title: "Media Library",
+    href: "/admin/media",
+    icon: Film
+  },
   {
     title: "Storage Settings",
     href: "/admin/settings/storage",

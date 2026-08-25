@@ -35,6 +35,15 @@ router
   .get(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.getAllUsers)
   .post(validateRequest(UserValidation.createUserZodSchema), UserController.createUser);
 
-router.get("/:id", auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.getUserById);
+router
+  .route("/:id")
+  .get(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.getUserById)
+  .delete(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.deleteUserByAdmin);
+
+router.patch(
+  "/:id/status",
+  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  UserController.toggleUserStatus
+);
 
 export const UserRoutes = router;

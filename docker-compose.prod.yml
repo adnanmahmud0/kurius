@@ -37,6 +37,8 @@ services:
     ports:
       # Bind to localhost only — Nginx proxies from port 80/443
       - "127.0.0.1:5000:5000"
+    volumes:
+      - kurius_prod_uploads:/app/apps/api/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,4 +73,6 @@ networks:
 
 volumes:
   kurius_prod_pgdata:
+    driver: local
+  kurius_prod_uploads:
     driver: local

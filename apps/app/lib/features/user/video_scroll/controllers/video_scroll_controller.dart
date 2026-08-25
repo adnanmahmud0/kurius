@@ -94,7 +94,9 @@ class VideoScrollController extends GetxController {
     _initVideoStates();
 
     if (videos.isNotEmpty) {
-      initializeVideoPlayer(currentIndex.value);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        initializeVideoPlayer(currentIndex.value);
+      });
     } else {
       loadInitialVideos(
         categoryId: selectedCategoryId.value.isNotEmpty ? selectedCategoryId.value : null,
@@ -157,7 +159,9 @@ class VideoScrollController extends GetxController {
         _initVideoStates();
 
         if (videos.isNotEmpty) {
-          initializeVideoPlayer(0);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            initializeVideoPlayer(0);
+          });
         }
       } else {
         if (!isUnauthorized.value && (res.message != null && res.message!.isNotEmpty && !res.success)) {
@@ -216,7 +220,6 @@ class VideoScrollController extends GetxController {
 
     final cursor = nextCursor.value;
     if (cursor == null && videos.isNotEmpty) {
-      // No more pages to fetch
       hasNextPage.value = false;
       return;
     }
@@ -307,8 +310,11 @@ class VideoScrollController extends GetxController {
       final videoUrl = targetVideo.fullVideoUrl;
       debugPrint('🎬 [VideoScrollController] Initializing player: $videoUrl');
 
-      // Record view in background
-      _effectiveRepository.recordView(targetVideo.id);
+      // Record view in background safely if authenticated
+      final storage = Get.isRegistered<StorageService>() ? Get.find<StorageService>() : StorageService.to;
+      if (storage.isLoggedIn()) {
+        _effectiveRepository.recordView(targetVideo.id);
+      }
       final currentViews = viewsCountMap[targetVideo.id] ?? 0;
       viewsCountMap[targetVideo.id] = currentViews + 1;
 
@@ -332,6 +338,7 @@ class VideoScrollController extends GetxController {
       });
 
       await controller.play();
+      isPlaying.value = true;
       isVideoInitialized.value = true;
       isBuffering.value = false;
     } catch (e) {

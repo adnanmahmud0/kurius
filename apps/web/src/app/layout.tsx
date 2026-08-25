@@ -38,6 +38,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script async crossOrigin="anonymous" src="https://tweakcn.com/live-preview.min.js" />
       </head>
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground flex min-h-screen w-full flex-col font-sans antialiased`}
       >
         <Providers>
