@@ -15,14 +15,15 @@ class VideoRepository {
   // Real Backend API Methods
   // ---------------------------------------------------------------------------
 
-  /// Fetch videos with cursor-based pagination, optional category filter and search term
+  /// Fetch videos with page/cursor pagination, optional category filter and search term
   Future<ApiResponse<List<VideoItemModel>>> fetchVideos({
+    int? page,
     String? cursor,
     int limit = 10,
     String? categoryId,
     String? searchTerm,
   }) async {
-    debugPrint('🎬 [VideoRepository.fetchVideos] Fetching video feed: limit=$limit, cursor=$cursor, category=$categoryId, search=$searchTerm');
+    debugPrint('🎬 [VideoRepository.fetchVideos] Fetching video feed: page=$page, limit=$limit, cursor=$cursor, category=$categoryId, search=$searchTerm');
     final client = apiClient;
     if (client == null) {
       debugPrint('⚠️ [VideoRepository.fetchVideos] ApiClient is null, returning empty list');
@@ -32,6 +33,7 @@ class VideoRepository {
     final query = <String, dynamic>{
       'limit': limit,
     };
+    if (page != null) query['page'] = page;
     if (cursor != null) query['cursor'] = cursor;
     if (categoryId != null) query['categoryId'] = categoryId;
     if (searchTerm != null && searchTerm.isNotEmpty) query['searchTerm'] = searchTerm;
