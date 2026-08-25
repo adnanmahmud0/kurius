@@ -99,15 +99,37 @@ class DiscoverController extends GetxController {
     isLoading.value = false;
   }
 
-  void filterCategory(String category) {
+  Future<void> filterCategory(String category) async {
     selectedCategory.value = category;
     if (category == 'All') {
       filteredVideos.value = allVideos;
-    } else {
-      filteredVideos.value = allVideos
-          .where((v) => v.category.toLowerCase() == category.toLowerCase())
-          .toList();
+      return;
     }
+
+    final catId = categoryIdMap[category];
+    final vidRepo = videoRepository ??
+        (Get.isRegistered<VideoRepository>()
+            ? Get.find<VideoRepository>()
+            : null);
+
+    if (catId != null && vidRepo != null) {
+      try {
+        final catRes = await vidRepo.getVideosByCategory(catId, limit: 20);
+        if (catRes.data != null && catRes.data!.isNotEmpty) {
+          filteredVideos.value = catRes.data!
+              .map((item) => VideoModel.fromVideoItem(item))
+              .toList();
+          return;
+        }
+      } catch (e) {
+        debugPrint('⚠️ [DiscoverController.filterCategory] Error fetching category videos: $e');
+      }
+    }
+
+    // Fallback local filtering
+    filteredVideos.value = allVideos
+        .where((v) => v.categoryName.toLowerCase() == category.toLowerCase())
+        .toList();
   }
 
   void openVideo(int initialIndex) {
@@ -117,6 +139,8 @@ class DiscoverController extends GetxController {
       arguments: {
         'initialIndex': initialIndex,
         'videos': filteredVideos.toList(),
+        if (selectedCategory.value != 'All' && categoryIdMap.containsKey(selectedCategory.value))
+          'categoryId': categoryIdMap[selectedCategory.value],
       },
     );
   }
