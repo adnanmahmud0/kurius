@@ -19,8 +19,10 @@ class AuthView extends GetView<AuthController> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: AppColors.textPrimary),
           onPressed: () => Get.back(),
         ),
         actions: [
@@ -223,7 +225,7 @@ class AuthView extends GetView<AuthController> {
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
-            onPressed: () {},
+            onPressed: () => Get.toNamed(AppRoutes.forgotPassword),
             style: TextButton.styleFrom(padding: EdgeInsets.zero),
             child: Text(
               'Forgot Password?',
@@ -236,22 +238,32 @@ class AuthView extends GetView<AuthController> {
           ),
         ),
         const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: controller.signIn,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 2,
-            ),
-            child: Text(
-              'Sign In',
-              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
+        Obx(() => SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: controller.isLoading.value ? null : controller.signIn,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 2,
+                ),
+                child: controller.isLoading.value
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        'Sign In',
+                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+              ),
+            )),
       ],
     );
   }
@@ -296,23 +308,52 @@ class AuthView extends GetView<AuthController> {
                 onPressed: controller.toggleRegisterPasswordVisibility,
               ),
             )),
+        const SizedBox(height: 16),
+        _buildLabel('Confirm Password'),
+        const SizedBox(height: 6),
+        Obx(() => _buildTextField(
+              controller: controller.registerConfirmPasswordController,
+              hint: 'Re-enter your password',
+              prefixIcon: Icons.lock_outline_rounded,
+              obscureText: controller.registerObscureConfirm.value,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  controller.registerObscureConfirm.value
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: AppColors.textSecondary,
+                  size: 20,
+                ),
+                onPressed: controller.toggleRegisterConfirmVisibility,
+              ),
+            )),
         const SizedBox(height: 22),
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: controller.signUp,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 2,
-            ),
-            child: Text(
-              'Create Account',
-              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
+        Obx(() => SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: controller.isLoading.value ? null : controller.signUp,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 2,
+                ),
+                child: controller.isLoading.value
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        'Create Account',
+                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+              ),
+            )),
       ],
     );
   }
