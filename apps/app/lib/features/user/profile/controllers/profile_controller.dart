@@ -42,13 +42,15 @@ class ProfileController extends GetxController {
   final TextEditingController contactController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
 
-  // Change Password Form Controllers
+  // Change Password Form Controllers & Observables
   final TextEditingController oldPasswordController = TextEditingController();
   final TextEditingController newPasswordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
   final RxBool obscureOldPassword = true.obs;
   final RxBool obscureNewPassword = true.obs;
   final RxBool obscureConfirmPassword = true.obs;
+  final RxString changePasswordSuccessMessage = ''.obs;
+  final RxString changePasswordErrorMessage = ''.obs;
 
   // Saved Videos & Learning History Lists
   final RxList<String> savedVideoIds = <String>[].obs;
@@ -215,30 +217,43 @@ class ProfileController extends GetxController {
   void toggleNewPasswordVisibility() => obscureNewPassword.value = !obscureNewPassword.value;
   void toggleConfirmPasswordVisibility() => obscureConfirmPassword.value = !obscureConfirmPassword.value;
 
+  void dismissPasswordMessage() {
+    changePasswordSuccessMessage.value = '';
+    changePasswordErrorMessage.value = '';
+  }
+
   Future<void> changePassword() async {
+    dismissPasswordMessage();
+
     final oldPass = oldPasswordController.text;
     final newPass = newPasswordController.text;
     final confirmPass = confirmPasswordController.text;
 
     if (oldPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
+      const err = 'Please fill in all password fields.';
+      changePasswordErrorMessage.value = err;
       ErrorHandler.showErrorSnackbar(
-        'Please fill in all password fields.',
+        err,
         customTitle: 'Validation Error',
       );
       return;
     }
 
     if (newPass != confirmPass) {
+      const err = 'New password and confirmation do not match.';
+      changePasswordErrorMessage.value = err;
       ErrorHandler.showErrorSnackbar(
-        'New password and confirmation do not match.',
+        err,
         customTitle: 'Validation Error',
       );
       return;
     }
 
     if (newPass.length < 6) {
+      const err = 'New password must be at least 6 characters.';
+      changePasswordErrorMessage.value = err;
       ErrorHandler.showErrorSnackbar(
-        'New password must be at least 6 characters.',
+        err,
         customTitle: 'Validation Error',
       );
       return;
@@ -253,7 +268,7 @@ class ProfileController extends GetxController {
               : null);
 
       if (repo != null) {
-        await repo.changePassword(ChangePasswordRequest(
+        final res = await repo.changePassword(ChangePasswordRequest(
           currentPassword: oldPass,
           newPassword: newPass,
           confirmPassword: confirmPass,
@@ -263,13 +278,24 @@ class ProfileController extends GetxController {
         newPasswordController.clear();
         confirmPasswordController.clear();
 
+        final msg = (res.message != null && res.message!.isNotEmpty)
+            ? res.message!
+            : 'Your password has been successfully changed';
+
+        changePasswordSuccessMessage.value = msg;
         ErrorHandler.showSuccessSnackbar(
-          'Your password has been changed successfully.',
+          msg,
           title: 'Password Updated',
         );
-        Get.back();
+
+        await Future.delayed(const Duration(milliseconds: 1200));
+        if (Get.key.currentState?.canPop() == true) {
+          Get.back();
+        }
       }
     } catch (e) {
+      final err = ErrorHandler.getErrorMessage(e);
+      changePasswordErrorMessage.value = err;
       ErrorHandler.showErrorSnackbar(
         e,
         onRetry: () => changePassword(),
