@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:kurius/core/network/api_response.dart';
 import 'package:kurius/core/storage/storage_service.dart';
+import 'package:kurius/data/models/auth/auth_requests.dart';
 import 'package:kurius/data/models/category/category_model.dart';
 import 'package:kurius/data/models/comment/comment_model.dart';
 import 'package:kurius/data/models/user/user_model.dart';
@@ -83,6 +84,19 @@ void main() {
     profileController.learningHistoryIds.add('h1');
     profileController.clearLearningHistory();
     expect(profileController.learningHistoryIds, isEmpty);
+  });
+
+  test('ChangePasswordRequest DTO JSON Serialization Test', () {
+    const request = ChangePasswordRequest(
+      currentPassword: 'OldPassword123!',
+      newPassword: 'NewSecurePassword123!',
+      confirmPassword: 'NewSecurePassword123!',
+    );
+
+    final json = request.toJson();
+    expect(json['currentPassword'], 'OldPassword123!');
+    expect(json['newPassword'], 'NewSecurePassword123!');
+    expect(json['confirmPassword'], 'NewSecurePassword123!');
   });
 
   test('VideoModel & VideoItemModel API JSON Deserialization Test', () {
