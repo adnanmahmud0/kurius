@@ -55,7 +55,7 @@ class CategoryVideosController extends GetxController {
     // Attach scroll listener for infinite cursor pagination
     scrollController.addListener(_scrollListener);
 
-    if (categoryId.value.isNotEmpty) {
+    if (categoryId.value.isNotEmpty || category.value != null) {
       loadCategoryVideos();
     }
   }
@@ -84,11 +84,24 @@ class CategoryVideosController extends GetxController {
     nextCursor.value = null;
     hasNextPage.value = true;
 
+    final targetId = categoryId.value.isNotEmpty ? categoryId.value : (category.value?.id ?? '');
+
     try {
-      final res = await _effectiveRepo.getVideosByCategory(
-        categoryId.value,
+      var res = await _effectiveRepo.getVideosByCategory(
+        targetId,
         limit: 10,
       );
+
+      // If empty and category has slug, try slug fallback
+      if ((res.data == null || res.data!.isEmpty) && category.value?.slug != null && category.value!.slug.isNotEmpty && category.value!.slug != targetId) {
+        final slugRes = await _effectiveRepo.getVideosByCategory(
+          category.value!.slug,
+          limit: 10,
+        );
+        if (slugRes.data != null && slugRes.data!.isNotEmpty) {
+          res = slugRes;
+        }
+      }
 
       if (res.data != null) {
         videos.value = res.data!;
@@ -121,9 +134,11 @@ class CategoryVideosController extends GetxController {
     nextCursor.value = null;
     hasNextPage.value = true;
 
+    final targetId = categoryId.value.isNotEmpty ? categoryId.value : (category.value?.id ?? '');
+
     try {
       final res = await _effectiveRepo.getVideosByCategory(
-        categoryId.value,
+        targetId,
         limit: 10,
       );
 
@@ -150,11 +165,12 @@ class CategoryVideosController extends GetxController {
     }
 
     isLoadingMore.value = true;
-    debugPrint('🔄 [CategoryVideosController.loadMoreVideos] Fetching cursor: $cursor');
+    final targetId = categoryId.value.isNotEmpty ? categoryId.value : (category.value?.id ?? '');
+    debugPrint('🔄 [CategoryVideosController.loadMoreVideos] Fetching cursor: $cursor for category: $targetId');
 
     try {
       final res = await _effectiveRepo.getVideosByCategory(
-        categoryId.value,
+        targetId,
         limit: 10,
         cursor: cursor,
       );
