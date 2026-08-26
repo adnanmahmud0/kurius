@@ -5,23 +5,31 @@ import '../../core/network/api_response.dart';
 import '../models/comment/comment_model.dart';
 
 class CommentRepository {
-  final ApiClient apiClient;
+  final ApiClient? apiClient;
 
-  const CommentRepository({required this.apiClient});
+  const CommentRepository({this.apiClient});
 
-  /// Fetch paginated comments for a video
+  /// Fetch cursor-paginated comments for a video: GET /videos/{id}/comments
   Future<ApiResponse<List<CommentModel>>> getVideoComments(
     String videoId, {
-    int page = 1,
-    int limit = 20,
+    int? limit,
+    String? cursor,
+    int? page,
   }) async {
-    debugPrint('💬 [CommentRepository.getVideoComments] Fetching comments for video: $videoId (page=$page, limit=$limit)');
-    final response = await apiClient.get<List<CommentModel>>(
+    debugPrint('💬 [CommentRepository.getVideoComments] Fetching comments for video: $videoId (limit=$limit, cursor=$cursor)');
+    final client = apiClient;
+    if (client == null) {
+      return const ApiResponse(success: true, data: []);
+    }
+
+    final query = <String, dynamic>{};
+    if (limit != null) query['limit'] = limit;
+    if (cursor != null && cursor.isNotEmpty) query['cursor'] = cursor;
+    if (page != null) query['page'] = page;
+
+    final response = await client.get<List<CommentModel>>(
       ApiEndpoints.videoComments(videoId),
-      queryParameters: {
-        'page': page,
-        'limit': limit,
-      },
+      queryParameters: query.isNotEmpty ? query : null,
       fromJsonT: (data) {
         if (data is List) {
           return data
@@ -31,17 +39,22 @@ class CommentRepository {
         return [];
       },
     );
-    debugPrint('📨 [CommentRepository.getVideoComments] Loaded ${response.data?.length ?? 0} comments');
+    debugPrint('📨 [CommentRepository.getVideoComments] Loaded ${response.data?.length ?? 0} comments (nextCursor: ${response.meta?.nextCursor})');
     return response;
   }
 
-  /// Post a new comment to a video
+  /// Post a new comment to a video: POST /videos/{id}/comments
   Future<ApiResponse<CommentModel>> postComment(
     String videoId, {
     required String commentText,
   }) async {
     debugPrint('✍️ [CommentRepository.postComment] Posting comment to video: $videoId | text="$commentText"');
-    final response = await apiClient.post<CommentModel>(
+    final client = apiClient;
+    if (client == null) {
+      return const ApiResponse(success: false, message: 'ApiClient is not initialized');
+    }
+
+    final response = await client.post<CommentModel>(
       ApiEndpoints.videoComments(videoId),
       data: {'commentText': commentText},
       fromJsonT: (data) => CommentModel.fromJson(data as Map<String, dynamic>),
@@ -50,10 +63,12 @@ class CommentRepository {
     return response;
   }
 
-  /// Delete a comment by ID
+  /// Delete a comment by ID: DELETE /comments/{id}
   Future<ApiResponse<dynamic>> deleteComment(String commentId) async {
     debugPrint('🗑️ [CommentRepository.deleteComment] Deleting comment ID: $commentId');
-    final response = await apiClient.delete(ApiEndpoints.deleteComment(commentId));
+    final client = apiClient;
+    if (client == null) return const ApiResponse(success: true);
+    final response = await client.delete(ApiEndpoints.deleteComment(commentId));
     debugPrint('✅ [CommentRepository.deleteComment] Comment deleted');
     return response;
   }

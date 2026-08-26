@@ -4,27 +4,19 @@ import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../../core/storage/storage_service.dart';
+import '../../../../data/models/comment/comment_model.dart';
+import '../../../../data/repositories/comment_repository.dart';
 import '../../../../data/repositories/video_repository.dart';
 import '../models/video_model.dart';
 
-class CommentItem {
-  final String userName;
-  final String comment;
-  final String timeAgo;
-  final String avatarLetter;
-
-  CommentItem({
-    required this.userName,
-    required this.comment,
-    required this.timeAgo,
-    required this.avatarLetter,
-  });
-}
-
 class VideoScrollController extends GetxController {
   final VideoRepository? videoRepository;
+  final CommentRepository? commentRepository;
 
-  VideoScrollController({this.videoRepository});
+  VideoScrollController({
+    this.videoRepository,
+    this.commentRepository,
+  });
 
   late PageController pageController;
   VideoPlayerController? activePlayerController;
@@ -44,7 +36,7 @@ class VideoScrollController extends GetxController {
   final RxString selectedCategoryId = ''.obs;
   final RxString searchQuery = ''.obs;
 
-  // Cursor Pagination States
+  // Cursor Pagination States for Videos
   final Rx<String?> nextCursor = Rx<String?>(null);
   final RxBool hasNextPage = true.obs;
 
@@ -61,9 +53,15 @@ class VideoScrollController extends GetxController {
   final RxMap<String, bool> likedMap = <String, bool>{}.obs;
   final RxMap<String, int> likesCountMap = <String, int>{}.obs;
   final RxMap<String, int> viewsCountMap = <String, int>{}.obs;
+  final RxMap<String, int> commentsCountMap = <String, int>{}.obs;
 
-  // Comments List
-  final RxList<CommentItem> comments = <CommentItem>[].obs;
+  // Real Backend Comments List & Pagination States
+  final RxList<CommentModel> activeVideoComments = <CommentModel>[].obs;
+  final RxBool isLoadingComments = false.obs;
+  final RxBool isLoadingMoreComments = false.obs;
+  final RxBool isPostingComment = false.obs;
+  final Rx<String?> commentsNextCursor = Rx<String?>(null);
+  final RxBool hasCommentsNextPage = true.obs;
   final TextEditingController commentInputController = TextEditingController();
 
   Timer? _controlsHideTimer;
@@ -110,6 +108,7 @@ class VideoScrollController extends GetxController {
       likedMap.putIfAbsent(video.id, () => video.isLiked);
       likesCountMap.putIfAbsent(video.id, () => video.initialLikes);
       viewsCountMap.putIfAbsent(video.id, () => video.initialViews);
+      commentsCountMap.putIfAbsent(video.id, () => video.initialComments);
     }
   }
 
@@ -118,6 +117,12 @@ class VideoScrollController extends GetxController {
       (Get.isRegistered<VideoRepository>()
           ? Get.find<VideoRepository>()
           : const VideoRepository());
+
+  CommentRepository get _effectiveCommentRepo =>
+      commentRepository ??
+      (Get.isRegistered<CommentRepository>()
+          ? Get.find<CommentRepository>()
+          : const CommentRepository());
 
   // ---------------------------------------------------------------------------
   // Video Feed Fetching with Cursor Pagination
@@ -268,26 +273,6 @@ class VideoScrollController extends GetxController {
     }
   }
 
-  /// Fetch single video by ID
-  Future<void> getVideoById(String id) async {
-    isLoading.value = true;
-    try {
-      final res = await _effectiveRepository.getVideoById(id);
-      if (res.data != null) {
-        final video = VideoModel.fromVideoItem(res.data!);
-        videos.value = [video];
-        _initVideoStates();
-        initializeVideoPlayer(0);
-      } else {
-        errorMessage.value = res.message ?? 'Video not found';
-      }
-    } catch (e) {
-      errorMessage.value = 'Failed to load video';
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // Video Player Lifecycle & Playback Management
   // ---------------------------------------------------------------------------
@@ -415,7 +400,7 @@ class VideoScrollController extends GetxController {
   }
 
   // ---------------------------------------------------------------------------
-  // User Actions (Like, Comment, Share)
+  // User Actions: Like & Comments with Real API
   // ---------------------------------------------------------------------------
 
   bool _checkAuthRequirement(String action) {
@@ -458,24 +443,121 @@ class VideoScrollController extends GetxController {
     }
   }
 
-  void addComment(String text) {
-    if (text.trim().isEmpty) return;
+  /// Load comments for the currently active video: GET /videos/{id}/comments
+  Future<void> loadCommentsForCurrentVideo({bool isRefresh = false}) async {
+    if (videos.isEmpty || currentIndex.value >= videos.length) return;
+    final currentVideo = videos[currentIndex.value];
+
+    if (isRefresh) {
+      activeVideoComments.clear();
+      commentsNextCursor.value = null;
+      hasCommentsNextPage.value = true;
+    }
+
+    isLoadingComments.value = true;
+    try {
+      final res = await _effectiveCommentRepo.getVideoComments(
+        currentVideo.id,
+        limit: 20,
+        cursor: isRefresh ? null : commentsNextCursor.value,
+      );
+
+      if (res.data != null) {
+        if (isRefresh) {
+          activeVideoComments.value = res.data!;
+        } else {
+          activeVideoComments.addAll(res.data!);
+        }
+        commentsNextCursor.value = res.meta?.nextCursor;
+        hasCommentsNextPage.value = res.meta?.hasNextPage ?? (res.meta?.nextCursor != null);
+        commentsCountMap[currentVideo.id] = activeVideoComments.length;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [VideoScrollController.loadCommentsForCurrentVideo] Error: $e');
+    } finally {
+      isLoadingComments.value = false;
+    }
+  }
+
+  /// Load more comments with cursor pagination: GET /videos/{id}/comments
+  Future<void> loadMoreCommentsForCurrentVideo() async {
+    if (isLoadingMoreComments.value || !hasCommentsNextPage.value) return;
+    if (videos.isEmpty || currentIndex.value >= videos.length) return;
+    final currentVideo = videos[currentIndex.value];
+
+    final cursor = commentsNextCursor.value;
+    if (cursor == null) {
+      hasCommentsNextPage.value = false;
+      return;
+    }
+
+    isLoadingMoreComments.value = true;
+    try {
+      final res = await _effectiveCommentRepo.getVideoComments(
+        currentVideo.id,
+        limit: 20,
+        cursor: cursor,
+      );
+
+      if (res.data != null && res.data!.isNotEmpty) {
+        final existingIds = activeVideoComments.map((c) => c.id).toSet();
+        final uniqueNew = res.data!.where((c) => !existingIds.contains(c.id)).toList();
+
+        activeVideoComments.addAll(uniqueNew);
+        commentsNextCursor.value = res.meta?.nextCursor;
+        hasCommentsNextPage.value = res.meta?.hasNextPage ?? (res.meta?.nextCursor != null);
+        commentsCountMap[currentVideo.id] = activeVideoComments.length;
+
+        if (uniqueNew.length < 20 || res.meta?.nextCursor == null) {
+          hasCommentsNextPage.value = false;
+        }
+      } else {
+        hasCommentsNextPage.value = false;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [VideoScrollController.loadMoreCommentsForCurrentVideo] Error: $e');
+    } finally {
+      isLoadingMoreComments.value = false;
+    }
+  }
+
+  /// Post a new comment: POST /videos/{id}/comments
+  Future<void> postComment(String text) async {
+    final comment = text.trim();
+    if (comment.isEmpty) return;
     if (!_checkAuthRequirement('comment on')) return;
 
-    final storage = Get.isRegistered<StorageService>() ? Get.find<StorageService>() : StorageService.to;
-    final user = storage.getUserData();
-    final name = user?['name'] as String? ?? 'You';
+    if (videos.isEmpty || currentIndex.value >= videos.length) return;
+    final currentVideo = videos[currentIndex.value];
 
-    comments.insert(
-      0,
-      CommentItem(
-        userName: name,
-        comment: text.trim(),
-        timeAgo: 'Just now',
-        avatarLetter: name.isNotEmpty ? name[0].toUpperCase() : 'Y',
-      ),
-    );
-    commentInputController.clear();
+    isPostingComment.value = true;
+    try {
+      final res = await _effectiveCommentRepo.postComment(
+        currentVideo.id,
+        commentText: comment,
+      );
+
+      if (res.data != null) {
+        activeVideoComments.insert(0, res.data!);
+        final currentCount = commentsCountMap[currentVideo.id] ?? 0;
+        commentsCountMap[currentVideo.id] = currentCount + 1;
+        commentInputController.clear();
+      } else {
+        if (res.message != null && Get.context != null) {
+          Get.snackbar(
+            'Error',
+            res.message!,
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.black87,
+            colorText: Colors.white,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [VideoScrollController.postComment] Error: $e');
+    } finally {
+      isPostingComment.value = false;
+    }
   }
 
   void triggerShowControls() {

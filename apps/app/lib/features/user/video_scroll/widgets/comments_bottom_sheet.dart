@@ -11,13 +11,27 @@ void showCommentsBottomSheet(BuildContext context) {
   final storage = Get.isRegistered<StorageService>() ? Get.find<StorageService>() : StorageService.to;
   final isLoggedIn = storage.isLoggedIn();
 
+  // Load latest comments from backend API on bottom sheet open
+  controller.loadCommentsForCurrentVideo(isRefresh: true);
+
+  final scrollController = ScrollController();
+  scrollController.addListener(() {
+    if (scrollController.position.pixels >=
+            scrollController.position.maxScrollExtent - 100 &&
+        controller.hasCommentsNextPage.value &&
+        !controller.isLoadingMoreComments.value &&
+        !controller.isLoadingComments.value) {
+      controller.loadMoreCommentsForCurrentVideo();
+    }
+  });
+
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (context) {
       return Container(
-        height: MediaQuery.of(context).size.height * 0.65,
+        height: MediaQuery.of(context).size.height * 0.70,
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -47,7 +61,7 @@ void showCommentsBottomSheet(BuildContext context) {
                 children: [
                   Obx(
                     () => Text(
-                      'Comments (${controller.comments.length})',
+                      'Comments (${controller.activeVideoComments.length})',
                       style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -68,7 +82,13 @@ void showCommentsBottomSheet(BuildContext context) {
             Expanded(
               child: Obx(
                 () {
-                  if (controller.comments.isEmpty) {
+                  if (controller.isLoadingComments.value && controller.activeVideoComments.isEmpty) {
+                    return const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary),
+                    );
+                  }
+
+                  if (controller.activeVideoComments.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -77,7 +97,7 @@ void showCommentsBottomSheet(BuildContext context) {
                               size: 40, color: AppColors.textMuted),
                           const SizedBox(height: 10),
                           Text(
-                            'No information found',
+                            'No comments yet',
                             style: GoogleFonts.outfit(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -98,27 +118,46 @@ void showCommentsBottomSheet(BuildContext context) {
                   }
 
                   return ListView.separated(
+                    controller: scrollController,
                     padding: const EdgeInsets.all(20),
-                    itemCount: controller.comments.length,
+                    itemCount: controller.activeVideoComments.length +
+                        (controller.isLoadingMoreComments.value ? 1 : 0),
                     separatorBuilder: (context, index) => const SizedBox(height: 16),
                     itemBuilder: (context, index) {
-                      final comment = controller.comments[index];
+                      if (index == controller.activeVideoComments.length) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          ),
+                        );
+                      }
+
+                      final comment = controller.activeVideoComments[index];
 
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: AppColors.pillBackground,
-                            child: Text(
-                              comment.avatarLetter,
-                              style: GoogleFonts.outfit(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
+                          // Avatar
+                          if (comment.userAvatar.isNotEmpty)
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundImage: NetworkImage(comment.userAvatar),
+                              backgroundColor: AppColors.pillBackground,
+                            )
+                          else
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: AppColors.pillBackground,
+                              child: Text(
+                                comment.avatarLetter,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
-                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -146,7 +185,7 @@ void showCommentsBottomSheet(BuildContext context) {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  comment.comment,
+                                  comment.commentText,
                                   style: GoogleFonts.outfit(
                                     fontSize: 14,
                                     color: AppColors.textPrimary,
@@ -193,15 +232,23 @@ void showCommentsBottomSheet(BuildContext context) {
                                 ),
                                 border: InputBorder.none,
                               ),
-                              onSubmitted: (val) => controller.addComment(val),
+                              onSubmitted: (val) => controller.postComment(val),
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.send_rounded, color: AppColors.primary),
-                          onPressed: () =>
-                              controller.addComment(controller.commentInputController.text),
+                        Obx(
+                          () => controller.isPostingComment.value
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                )
+                              : IconButton(
+                                  icon: const Icon(Icons.send_rounded, color: AppColors.primary),
+                                  onPressed: () =>
+                                      controller.postComment(controller.commentInputController.text),
+                                ),
                         ),
                       ],
                     )

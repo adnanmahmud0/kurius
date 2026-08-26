@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:kurius/core/network/api_response.dart';
 import 'package:kurius/core/storage/storage_service.dart';
 import 'package:kurius/data/models/category/category_model.dart';
+import 'package:kurius/data/models/comment/comment_model.dart';
 import 'package:kurius/data/models/user/user_model.dart';
 import 'package:kurius/data/models/video/video_item_model.dart';
 import 'package:kurius/features/user/auth/controllers/auth_controller.dart';
@@ -142,6 +143,31 @@ void main() {
     expect(videoModel.hashtags.length, 3);
   });
 
+  test('CommentModel API JSON Deserialization & Helper Test', () {
+    final commentJson = {
+      "id": "c-100",
+      "userId": "u-50",
+      "videoId": "v-1",
+      "commentText": "This is an insightful video!",
+      "status": "active",
+      "createdAt": "2026-08-29T10:00:00.000Z",
+      "updatedAt": "2026-08-29T10:00:00.000Z",
+      "user": {
+        "id": "u-50",
+        "name": "Sarah Connor",
+        "avatar": "https://i.ibb.co.com/avatar.jpg"
+      }
+    };
+
+    final comment = CommentModel.fromJson(commentJson);
+    expect(comment.id, 'c-100');
+    expect(comment.commentText, 'This is an insightful video!');
+    expect(comment.userName, 'Sarah Connor');
+    expect(comment.avatarLetter, 'S');
+    expect(comment.userAvatar, 'https://i.ibb.co.com/avatar.jpg');
+    expect(comment.timeAgo, isNotEmpty);
+  });
+
   test('CategoryVideosController State & Pagination Defaults', () {
     final catController = Get.put(CategoryVideosController());
     expect(catController.videos, isEmpty);
@@ -201,9 +227,6 @@ void main() {
 
     videoController.toggleLike('vid-123');
     expect(videoController.likedMap['vid-123'] ?? false, isFalse);
-
-    videoController.addComment('A test comment');
-    expect(videoController.comments, isEmpty);
 
     // Test format duration
     expect(videoController.formatDuration(65), '1:05');

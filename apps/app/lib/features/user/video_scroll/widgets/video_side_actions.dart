@@ -140,7 +140,7 @@ class VideoSideActions extends GetView<VideoScrollController> {
             const SizedBox(height: 4),
             Obx(
               () {
-                final count = video.initialComments + controller.comments.length;
+                final count = controller.commentsCountMap[video.id] ?? video.initialComments;
                 return Text(
                   '$count',
                   style: GoogleFonts.outfit(
