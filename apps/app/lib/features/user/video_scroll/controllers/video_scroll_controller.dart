@@ -400,7 +400,7 @@ class VideoScrollController extends GetxController {
   }
 
   // ---------------------------------------------------------------------------
-  // User Actions: Like & Comments with Real API
+  // User Actions: Like, Comments & Delete with Real API
   // ---------------------------------------------------------------------------
 
   bool _checkAuthRequirement(String action) {
@@ -558,6 +558,51 @@ class VideoScrollController extends GetxController {
     } finally {
       isPostingComment.value = false;
     }
+  }
+
+  /// Delete comment by ID: DELETE /comments/{id}
+  Future<bool> deleteComment(String commentId) async {
+    if (!_checkAuthRequirement('delete comments from')) return false;
+
+    if (videos.isEmpty || currentIndex.value >= videos.length) return false;
+    final currentVideo = videos[currentIndex.value];
+
+    try {
+      final res = await _effectiveCommentRepo.deleteComment(commentId);
+      if (res.success) {
+        activeVideoComments.removeWhere((c) => c.id == commentId);
+        final currentCount = commentsCountMap[currentVideo.id] ?? 0;
+        if (currentCount > 0) {
+          commentsCountMap[currentVideo.id] = currentCount - 1;
+        }
+
+        if (Get.context != null) {
+          Get.snackbar(
+            'Deleted',
+            'Comment deleted successfully.',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.black87,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 2),
+            borderRadius: 12,
+            margin: const EdgeInsets.all(16),
+          );
+        }
+        return true;
+      }
+    } catch (e) {
+      debugPrint('❌ [VideoScrollController.deleteComment] Error: $e');
+      if (Get.context != null) {
+        Get.snackbar(
+          'Error',
+          'Failed to delete comment.',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.redAccent,
+          colorText: Colors.white,
+        );
+      }
+    }
+    return false;
   }
 
   void triggerShowControls() {

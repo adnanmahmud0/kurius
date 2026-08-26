@@ -10,6 +10,9 @@ void showCommentsBottomSheet(BuildContext context) {
   final controller = Get.find<VideoScrollController>();
   final storage = Get.isRegistered<StorageService>() ? Get.find<StorageService>() : StorageService.to;
   final isLoggedIn = storage.isLoggedIn();
+  final currentUser = storage.getUserData();
+  final currentUserId = currentUser?['id'] as String? ?? '';
+  final currentUserRole = currentUser?['role'] as String? ?? '';
 
   // Load latest comments from backend API on bottom sheet open
   controller.loadCommentsForCurrentVideo(isRefresh: true);
@@ -134,6 +137,10 @@ void showCommentsBottomSheet(BuildContext context) {
                       }
 
                       final comment = controller.activeVideoComments[index];
+                      final canDelete = isLoggedIn &&
+                          (comment.userId == currentUserId ||
+                              currentUserRole == 'ADMIN' ||
+                              comment.userId.isEmpty);
 
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,23 +171,95 @@ void showCommentsBottomSheet(BuildContext context) {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      comment.userName,
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textPrimary,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          comment.userName,
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          comment.timeAgo,
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      comment.timeAgo,
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary,
+                                    // Delete Button
+                                    if (canDelete)
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          size: 18,
+                                          color: Colors.redAccent,
+                                        ),
+                                        splashRadius: 18,
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                              ),
+                                              title: Text(
+                                                'Delete Comment',
+                                                style: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                              content: Text(
+                                                'Are you sure you want to delete this comment?',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 14,
+                                                  color: AppColors.textSecondary,
+                                                ),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(ctx),
+                                                  child: Text(
+                                                    'Cancel',
+                                                    style: GoogleFonts.outfit(
+                                                      color: AppColors.textSecondary,
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ),
+                                                ElevatedButton(
+                                                  onPressed: () {
+                                                    Navigator.pop(ctx);
+                                                    controller.deleteComment(comment.id);
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.redAccent,
+                                                    foregroundColor: Colors.white,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(10),
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    'Delete',
+                                                    style: GoogleFonts.outfit(
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
                                       ),
-                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 4),
