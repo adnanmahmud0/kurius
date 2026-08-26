@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../app/routes/app_routes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../controllers/home_controller.dart';
 
@@ -12,13 +13,26 @@ class CategoriesSection extends GetView<HomeController> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Categories',
-          style: GoogleFonts.outfit(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Categories',
+              style: GoogleFonts.outfit(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            Text(
+              'See all',
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 14),
         Obx(() {
@@ -65,7 +79,17 @@ class CategoriesSection extends GetView<HomeController> {
                     controller.selectedCategoryId.value == category.id;
 
                 return GestureDetector(
-                  onTap: () => controller.selectCategory(category.id),
+                  onTap: () {
+                    controller.selectCategory(category.id);
+                    Get.toNamed(
+                      AppRoutes.categoryVideos,
+                      arguments: {
+                        'category': category,
+                        'categoryId': category.id,
+                        'categoryName': category.title,
+                      },
+                    );
+                  },
                   child: Column(
                     children: [
                       AnimatedContainer(

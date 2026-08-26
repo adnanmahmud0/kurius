@@ -8,7 +8,9 @@ import '../../features/user/auth/views/splash_view.dart';
 import '../../features/user/auth/views/verify_otp_view.dart';
 import '../../features/user/discover/bindings/discover_binding.dart';
 import '../../features/user/discover/views/discover_view.dart';
+import '../../features/user/home/bindings/category_videos_binding.dart';
 import '../../features/user/home/bindings/home_binding.dart';
+import '../../features/user/home/views/category_videos_view.dart';
 import '../../features/user/home/views/home_view.dart';
 import '../../features/user/profile/bindings/profile_binding.dart';
 import '../../features/user/profile/views/change_password_view.dart';
@@ -38,6 +40,12 @@ class AppPages {
       page: () => const HomeView(),
       binding: HomeBinding(),
       transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: AppRoutes.categoryVideos,
+      page: () => const CategoryVideosView(),
+      binding: CategoryVideosBinding(),
+      transition: Transition.rightToLeftWithFade,
     ),
     GetPage(
       name: AppRoutes.auth,

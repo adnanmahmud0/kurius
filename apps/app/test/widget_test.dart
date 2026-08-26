@@ -2,9 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:kurius/core/network/api_response.dart';
 import 'package:kurius/core/storage/storage_service.dart';
+import 'package:kurius/data/models/category/category_model.dart';
 import 'package:kurius/data/models/user/user_model.dart';
 import 'package:kurius/data/models/video/video_item_model.dart';
 import 'package:kurius/features/user/auth/controllers/auth_controller.dart';
+import 'package:kurius/features/user/home/controllers/category_videos_controller.dart';
 import 'package:kurius/features/user/home/controllers/home_controller.dart';
 import 'package:kurius/features/user/profile/controllers/profile_controller.dart';
 import 'package:kurius/features/user/video_scroll/controllers/video_scroll_controller.dart';
@@ -87,8 +89,8 @@ void main() {
       "id": "vid-999",
       "title": "Quantum Computing 101",
       "subtitle": "Understanding qubits and superposition",
-      "videoUrl": "https://api.kuriusapp.cloud/uploads/videos/quantum.mp4",
-      "thumbnailUrl": "https://images.unsplash.com/photo-1635070041078-e363dbe005cb",
+      "videoUrl": "/uploads/videos/quantum.mp4",
+      "thumbnailUrl": "/uploads/thumbnails/quantum.jpg",
       "categoryId": "cat-physics",
       "hashtags": ["quantum", "physics", "tech"],
       "status": "active",
@@ -125,6 +127,8 @@ void main() {
     expect(videoItem.stats.likesCount, 420);
     expect(videoItem.stats.commentsCount, 18);
     expect(videoItem.hashtags, contains('quantum'));
+    expect(videoItem.displayThumbnail, 'https://api.kuriusapp.cloud/uploads/thumbnails/quantum.jpg');
+    expect(videoItem.fullVideoUrl, 'https://api.kuriusapp.cloud/uploads/videos/quantum.mp4');
 
     final videoModel = VideoModel.fromJson(sampleJson);
     expect(videoModel.id, 'vid-999');
@@ -133,7 +137,24 @@ void main() {
     expect(videoModel.initialComments, 18);
     expect(videoModel.creatorName, 'Dr. Sarah');
     expect(videoModel.categoryName, 'Physics');
+    expect(videoModel.displayThumbnail, 'https://api.kuriusapp.cloud/uploads/thumbnails/quantum.jpg');
+    expect(videoModel.fullVideoUrl, 'https://api.kuriusapp.cloud/uploads/videos/quantum.mp4');
     expect(videoModel.hashtags.length, 3);
+  });
+
+  test('CategoryVideosController State & Pagination Defaults', () {
+    final catController = Get.put(CategoryVideosController());
+    expect(catController.videos, isEmpty);
+    expect(catController.isLoading.value, isFalse);
+    expect(catController.isLoadingMore.value, isFalse);
+    expect(catController.nextCursor.value, isNull);
+    expect(catController.hasNextPage.value, isTrue);
+
+    const category = CategoryModel(id: 'cat-1', name: 'Comedy', slug: 'comedy');
+    catController.category.value = category;
+    catController.categoryId.value = category.id;
+    catController.categoryName.value = category.title;
+    expect(catController.categoryName.value, 'Comedy');
   });
 
   test('PaginationMeta Cursor and Pagination Parsing Test', () {
