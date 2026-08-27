@@ -222,18 +222,27 @@ jobs:
             nginx -t && systemctl reload nginx
             echo "✓ Nginx configured and reloaded"
 
-            # Obtain SSL certificate (first deploy only)
+            # Obtain SSL certificate — covers main domain + api subdomain
             if [ ! -d "/etc/letsencrypt/live/kuriusapp.cloud" ]; then
               echo "Obtaining SSL certificate via Let's Encrypt..."
               certbot --nginx \
                 -d kuriusapp.cloud \
                 -d www.kuriusapp.cloud \
+                -d api.kuriusapp.cloud \
                 --non-interactive \
                 --agree-tos \
                 --email ${{ secrets.EMAIL_USER }}
               echo "✓ SSL certificate obtained"
             else
-              echo "✓ SSL certificate already exists"
+              echo "Expanding SSL cert to include api subdomain if missing..."
+              certbot --nginx \
+                -d kuriusapp.cloud \
+                -d www.kuriusapp.cloud \
+                -d api.kuriusapp.cloud \
+                --non-interactive \
+                --agree-tos \
+                --email ${{ secrets.EMAIL_USER }} \
+                --expand || echo "✓ SSL cert already up to date"
             fi
 
             echo ""
