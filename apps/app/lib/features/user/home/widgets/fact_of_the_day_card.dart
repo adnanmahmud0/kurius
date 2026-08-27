@@ -38,23 +38,42 @@ class FactOfTheDayCard extends GetView<HomeController> {
             ],
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Fact text
+              // Fact text & author
               Expanded(
                 flex: 6,
                 child: Obx(
-                  () => Text(
-                    controller.factOfTheDay.value.isNotEmpty
-                        ? controller.factOfTheDay.value
-                        : 'No information found',
-                    style: GoogleFonts.outfit(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: controller.factOfTheDay.value.isNotEmpty
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
-                      height: 1.35,
-                    ),
+                  () => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        controller.factOfTheDay.value.isNotEmpty
+                            ? controller.factOfTheDay.value
+                            : 'No information found',
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: controller.factOfTheDay.value.isNotEmpty
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                          height: 1.35,
+                        ),
+                      ),
+                      if (controller.factAuthor.value.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          '— ${controller.factAuthor.value}',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),

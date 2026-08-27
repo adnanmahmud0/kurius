@@ -45,6 +45,9 @@ class ApiEndpoints {
   // Category Endpoints
   static const String categories = '$apiPrefix/categories';
 
+  // Motivational Quotes Endpoints
+  static const String motivationalMessages = '$apiPrefix/motivational-messages';
+
   // Legal Endpoints
   static const String privacyPolicy = '$apiPrefix/legal/privacy';
   static const String termsOfService = '$apiPrefix/legal/terms';

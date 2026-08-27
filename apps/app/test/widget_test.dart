@@ -5,6 +5,7 @@ import 'package:kurius/core/storage/storage_service.dart';
 import 'package:kurius/data/models/auth/auth_requests.dart';
 import 'package:kurius/data/models/category/category_model.dart';
 import 'package:kurius/data/models/comment/comment_model.dart';
+import 'package:kurius/data/models/motivational/motivational_message_model.dart';
 import 'package:kurius/data/models/user/user_model.dart';
 import 'package:kurius/data/models/video/video_item_model.dart';
 import 'package:kurius/features/user/auth/controllers/auth_controller.dart';
@@ -119,6 +120,24 @@ void main() {
     expect(category.videosCount, 5);
     expect(category.displayThumbnail, 'https://api.kuriusapp.cloud/uploads/categories/67af9512-0bb7-41e6-ad71-84f9fef70a39.jpg');
     expect(category.title, 'Education');
+  });
+
+  test('MotivationalMessageModel API JSON Deserialization Test', () {
+    final msgJson = {
+      "id": "80019224-5b07-47f9-92c0-9968c2c417c0",
+      "message": "Success is not final, failure is not fatal: It is the courage to continue that counts.",
+      "author": "Winston Churchill",
+      "status": "active",
+      "createdAt": "2026-08-29T15:09:51.468Z",
+      "updatedAt": "2026-08-29T15:09:51.468Z"
+    };
+
+    final model = MotivationalMessageModel.fromJson(msgJson);
+    expect(model.id, '80019224-5b07-47f9-92c0-9968c2c417c0');
+    expect(model.message, contains('courage to continue'));
+    expect(model.author, 'Winston Churchill');
+    expect(model.displayAuthor, 'Winston Churchill');
+    expect(model.formattedText, contains('— Winston Churchill'));
   });
 
   test('AllCategoriesController State and Filtering Test', () {
@@ -300,5 +319,6 @@ void main() {
     final homeController = Get.put(HomeController());
     expect(homeController.categories, isEmpty);
     expect(homeController.latestVideos, isEmpty);
+    expect(homeController.factOfTheDay.value, '');
   });
 }
