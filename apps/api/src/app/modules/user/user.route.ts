@@ -35,4 +35,6 @@ router
   .get(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.getAllUsers)
   .post(validateRequest(UserValidation.createUserZodSchema), UserController.createUser);
 
+router.get("/:id", auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.getUserById);
+
 export const UserRoutes = router;

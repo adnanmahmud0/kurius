@@ -42,6 +42,94 @@ export interface IUser {
   name?: string | null;
   role?: string;
   avatar?: string | null;
+  location?: string | null;
+  contact?: string | null;
+  verified?: boolean;
+  status?: string;
   createdAt: string | Date;
   updatedAt: string | Date;
+  stats?: {
+    videosCreated?: number;
+    viewsCount?: number;
+    likesCount?: number;
+    commentsCount?: number;
+  };
+}
+
+export interface ICategory {
+  id: string;
+  name: string;
+  slug: string;
+  status: "active" | "delete";
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  _count?: {
+    videos: number;
+  };
+}
+
+export interface IVideo {
+  id: string;
+  title: string;
+  subtitle: string;
+  videoUrl: string;
+  thumbnailUrl?: string | null;
+  categoryId: string;
+  category?: {
+    id: string;
+    name: string;
+    slug?: string;
+  };
+  hashtags: string[];
+  status: "active" | "delete";
+  createdBy: string;
+  creator?: {
+    id: string;
+    name: string;
+    avatar?: string | null;
+    email?: string;
+  };
+  storageType: "local" | "cloudinary";
+  publicId?: string | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  isLiked?: boolean;
+  stats?: {
+    viewsCount: number;
+    likesCount: number;
+    commentsCount: number;
+  };
+}
+
+export interface IComment {
+  id: string;
+  userId: string;
+  videoId: string;
+  commentText: string;
+  status: "active" | "delete";
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  user?: {
+    id: string;
+    name: string;
+    avatar?: string | null;
+  };
+}
+
+export interface IStorageSetting {
+  id: string;
+  provider: "local" | "cloudinary";
+  cloudName?: string | null;
+  apiKey?: string | null;
+  hasApiSecret: boolean;
+  updatedAt: string | Date;
+}
+
+export interface ILegalPolicy {
+  id: string;
+  type: "privacy" | "terms";
+  title: string;
+  content: string;
+  updatedAt: string | Date;
+  createdAt: string | Date;
 }

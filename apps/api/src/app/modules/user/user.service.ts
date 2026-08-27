@@ -49,19 +49,100 @@ const getAllUsersToDB = async (query: Record<string, unknown>) => {
     where,
     skip,
     take: limitNumber,
-    orderBy
+    orderBy,
+    select: {
+      id: true,
+      name: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      role: true,
+      contact: true,
+      location: true,
+      image: true,
+      avatar: true,
+      status: true,
+      verified: true,
+      provider: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: {
+          videos: true,
+          views: true,
+          likes: true,
+          comments: true
+        }
+      }
+    }
   });
+
+  const formattedResult = result.map((u: any) => ({
+    ...u,
+    stats: {
+      videosCreated: u._count?.videos || 0,
+      viewsCount: u._count?.views || 0,
+      likesCount: u._count?.likes || 0,
+      commentsCount: u._count?.comments || 0
+    }
+  }));
 
   const total = await prisma.user.count({ where });
   const totalPage = Math.ceil(total / limitNumber);
 
   return {
-    result,
+    result: formattedResult,
     meta: {
       total,
       limit: limitNumber,
       page: pageNumber,
       totalPage
+    }
+  };
+};
+
+const getUserByIdFromDB = async (id: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      role: true,
+      contact: true,
+      location: true,
+      image: true,
+      avatar: true,
+      status: true,
+      verified: true,
+      provider: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: {
+          videos: true,
+          views: true,
+          likes: true,
+          comments: true
+        }
+      }
+    }
+  });
+
+  if (!user) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "User not found!");
+  }
+
+  const { _count, ...rest } = user;
+  return {
+    ...rest,
+    stats: {
+      videosCreated: _count?.videos || 0,
+      viewsCount: _count?.views || 0,
+      likesCount: _count?.likes || 0,
+      commentsCount: _count?.comments || 0
     }
   };
 };
@@ -144,6 +225,7 @@ const deleteAccountFromDB = async (user: JwtPayload) => {
 
 export const UserService = {
   getAllUsersToDB,
+  getUserByIdFromDB,
   createUserToDB,
   getUserProfileFromDB,
   updateProfileToDB,

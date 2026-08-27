@@ -3,14 +3,58 @@ import { StatusCodes } from "http-status-codes";
 import { JwtPayload, Secret } from "jsonwebtoken";
 
 import config from "../../../config";
+import { USER_ROLES } from "../../../enums/user";
 import ApiError from "../../../errors/ApiError";
 import { emailHelper } from "../../../helpers/emailHelper";
 import { jwtHelper } from "../../../helpers/jwtHelper";
 import { emailTemplate } from "../../../shared/emailTemplate";
 import prisma from "../../../shared/prisma";
-import { IAuthResetPassword, IChangePassword, ILoginData, IVerifyEmail } from "../../../types/auth";
+import {
+  IAuthResetPassword,
+  IChangePassword,
+  ILoginData,
+  IRegisterData,
+  IVerifyEmail
+} from "../../../types/auth";
 import cryptoToken from "../../../util/cryptoToken";
 import generateOTP from "../../../util/generateOTP";
+
+//register
+const registerUserToDB = async (payload: IRegisterData) => {
+  const { name, email, password } = payload;
+  const isExistUser = await prisma.user.findUnique({ where: { email } });
+  if (isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User with this email already exists!");
+  }
+
+  const hashPassword = await bcrypt.hash(password, Number(config.bcrypt_salt_rounds));
+  const otp = generateOTP();
+
+  const newUser = await prisma.user.create({
+    data: {
+      name,
+      email,
+      password: hashPassword,
+      role: USER_ROLES.USER,
+      verified: false,
+      authOneTimeCode: otp,
+      authExpireAt: new Date(Date.now() + 3 * 60000)
+    }
+  });
+
+  const values = {
+    name: newUser.name,
+    otp,
+    email: newUser.email
+  };
+  const accountTemplate = emailTemplate.createAccount(values);
+  emailHelper.sendEmail(accountTemplate);
+
+  return {
+    email: newUser.email,
+    message: "Registration successful! Please check your email for the verification OTP."
+  };
+};
 
 //login
 const loginUserFromDB = async (payload: ILoginData) => {
@@ -20,11 +64,34 @@ const loginUserFromDB = async (payload: ILoginData) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
+  //check match password
+  if (password && !(await bcrypt.compare(password, isExistUser.password || ""))) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Password is incorrect!");
+  }
+
   //check verified and status
   if (!isExistUser.verified) {
+    // Resend a fresh OTP
+    const otp = generateOTP();
+    await prisma.user.update({
+      where: { id: isExistUser.id },
+      data: {
+        authOneTimeCode: otp,
+        authExpireAt: new Date(Date.now() + 3 * 60000)
+      }
+    });
+
+    const values = {
+      name: isExistUser.name,
+      otp,
+      email: isExistUser.email
+    };
+    const resendTemplate = emailTemplate.createAccount(values);
+    emailHelper.sendEmail(resendTemplate);
+
     throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      "Please verify your account, then try to login again"
+      StatusCodes.FORBIDDEN,
+      "Please verify your account. A new verification OTP has been sent to your email."
     );
   }
 
@@ -32,13 +99,8 @@ const loginUserFromDB = async (payload: ILoginData) => {
   if (isExistUser.status === "delete") {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      "You don’t have permission to access this content.It looks like your account has been deactivated."
+      "You don’t have permission to access this content. It looks like your account has been deactivated."
     );
-  }
-
-  //check match password
-  if (password && !(await bcrypt.compare(password, isExistUser.password || ""))) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Password is incorrect!");
   }
 
   //create access token
@@ -259,6 +321,7 @@ const resendOtpToDB = async (email: string) => {
 };
 
 export const AuthService = {
+  registerUserToDB,
   verifyEmailToDB,
   loginUserFromDB,
   forgetPasswordToDB,

@@ -1,0 +1,128 @@
+import fs from "fs";
+import path from "path";
+
+import { v4 as uuidv4 } from "uuid";
+
+import config from "../config";
+import { errorLogger, logger } from "../shared/logger";
+import prisma from "../shared/prisma";
+import { CloudinaryHelper } from "./cloudinaryHelper";
+
+export interface UploadResult {
+  url: string;
+  publicId?: string;
+  storageType: "local" | "cloudinary";
+}
+
+/**
+ * Ensures a directory exists
+ */
+const ensureDir = (dirPath: string) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+};
+
+/**
+ * Dynamic Storage Adapter:
+ * Uploads a file buffer or disk file to either Local Storage or Cloudinary
+ * based on the active StorageSetting in the database.
+ */
+export const uploadFile = async (
+  file: Express.Multer.File,
+  folder = "videos"
+): Promise<UploadResult> => {
+  // Check active storage setting from database
+  let provider = "local";
+  try {
+    const setting = await prisma.storageSetting.findFirst();
+    if (setting?.provider === "cloudinary") {
+      provider = "cloudinary";
+    }
+  } catch {
+    provider = "local";
+  }
+
+  // 1. Cloudinary upload
+  if (provider === "cloudinary") {
+    try {
+      const buffer = file.buffer || (file.path ? fs.readFileSync(file.path) : null);
+      if (!buffer) {
+        throw new Error("File buffer is empty");
+      }
+      const isVideo = file.mimetype.startsWith("video/");
+      const result = await CloudinaryHelper.uploadToCloudinary(
+        buffer,
+        `kurius/${folder}`,
+        isVideo ? "video" : "image"
+      );
+
+      // If a temporary local file existed, remove it
+      if (file.path && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+
+      return {
+        url: result.secure_url,
+        publicId: result.public_id,
+        storageType: "cloudinary"
+      };
+    } catch (err) {
+      errorLogger.error("Cloudinary upload failed, falling back to local storage", err);
+      // Fall through to local storage
+    }
+  }
+
+  // 2. Local Disk Storage
+  const ext =
+    path.extname(file.originalname) || (file.mimetype.startsWith("video/") ? ".mp4" : ".jpg");
+  const filename = `${uuidv4()}${ext}`;
+  const targetDir = path.join(process.cwd(), "uploads", folder);
+  ensureDir(targetDir);
+
+  const targetPath = path.join(targetDir, filename);
+
+  if (file.buffer) {
+    await fs.promises.writeFile(targetPath, file.buffer);
+  } else if (file.path) {
+    await fs.promises.copyFile(file.path, targetPath);
+    if (file.path !== targetPath && fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+  }
+
+  const relativeUrl = `/uploads/${folder}/${filename}`;
+  logger.info(`File saved locally: ${relativeUrl}`);
+
+  return {
+    url: relativeUrl,
+    publicId: `${folder}/${filename}`,
+    storageType: "local"
+  };
+};
+
+/**
+ * Delete a file from local storage or Cloudinary
+ */
+export const deleteFile = async (publicId: string, storageType = "local"): Promise<void> => {
+  if (!publicId) return;
+
+  if (storageType === "cloudinary") {
+    await CloudinaryHelper.deleteFromCloudinary(publicId);
+  } else {
+    try {
+      const localPath = path.join(process.cwd(), "uploads", publicId);
+      if (fs.existsSync(localPath)) {
+        fs.unlinkSync(localPath);
+        logger.info(`Deleted local file: ${localPath}`);
+      }
+    } catch (error) {
+      errorLogger.error("Local file delete error", error);
+    }
+  }
+};
+
+export const StorageAdapter = {
+  uploadFile,
+  deleteFile
+};

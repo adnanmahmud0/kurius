@@ -1,10 +1,5 @@
-import { FeaturesList, MonorepoOverview } from "@/widgets";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return (
-    <div className="flex flex-col items-center">
-      <MonorepoOverview />
-      <FeaturesList />
-    </div>
-  );
+  redirect("/admin");
 }

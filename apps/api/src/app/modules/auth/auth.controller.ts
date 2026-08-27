@@ -7,6 +7,18 @@ import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { AuthService } from "./auth.service";
 
+const registerUser = catchAsync(async (req: Request, res: Response) => {
+  const { ...registerData } = req.body;
+  const result = await AuthService.registerUserToDB(registerData);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.CREATED,
+    message: result.message,
+    data: { email: result.email }
+  });
+});
+
 const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   const { ...verifyData } = req.body;
   const result = await AuthService.verifyEmailToDB(verifyData);
@@ -86,6 +98,7 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const AuthController = {
+  registerUser,
   verifyEmail,
   loginUser,
   forgetPassword,

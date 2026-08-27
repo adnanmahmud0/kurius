@@ -22,13 +22,17 @@ export const createSuccessResponseSchema = <T extends z.ZodTypeAny>(
   options?: {
     description?: string;
     exampleMessage?: string;
+    metaSchema?: z.ZodTypeAny;
   }
 ) => {
   return z
     .object({
       success: z.literal(true).openapi({ example: true }),
       statusCode: z.number().openapi({ example: 200 }),
-      message: z.string().optional().openapi({ example: options?.exampleMessage || "Operation successful" }),
+      message: z
+        .string()
+        .optional()
+        .openapi({ example: options?.exampleMessage || "Operation successful" }),
       pagination: z
         .object({
           page: z.number().openapi({ example: 1 }),
@@ -37,6 +41,7 @@ export const createSuccessResponseSchema = <T extends z.ZodTypeAny>(
           total: z.number().openapi({ example: 1 })
         })
         .optional(),
+      meta: options?.metaSchema ? options.metaSchema.optional() : z.any().optional(),
       data: dataSchema
     })
     .openapi(options?.description || "SuccessResponse");

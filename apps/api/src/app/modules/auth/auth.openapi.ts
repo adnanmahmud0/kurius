@@ -12,6 +12,15 @@ import { AuthValidation } from "./auth.validation";
 // 1. Request Schemas (Extending existing schemas with OpenAPI metadata)
 // ============================================================================
 
+export const RegisterRequestSchema = AuthValidation.createRegisterZodSchema.shape.body.openapi({
+  description: "User registration payload",
+  example: {
+    name: "John Doe",
+    email: "user@example.com",
+    password: "Password123!"
+  }
+});
+
 export const LoginRequestSchema = AuthValidation.createLoginZodSchema.shape.body.openapi({
   description: "User login payload",
   example: {
@@ -82,12 +91,56 @@ export const GenericMessageResponseDataSchema = z
 // 3. Register Auth Routes with OpenAPIRegistry
 // ============================================================================
 
+// POST /auth/register
+registry.registerPath({
+  method: "post",
+  path: "/auth/register",
+  summary: "User Registration",
+  description: "Registers a new user account, generates an OTP, and sends a verification email.",
+  tags: ["Auth"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: RegisterRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    201: {
+      description: "User registered successfully, OTP sent",
+      content: {
+        "application/json": {
+          schema: createSuccessResponseSchema(
+            z.object({ email: z.string().email() }).openapi("RegisterResponseData"),
+            {
+              exampleMessage:
+                "Registration successful! Please check your email for the verification OTP."
+            }
+          )
+        }
+      }
+    },
+    400: {
+      description: "Validation error or user already exists",
+      content: {
+        "application/json": {
+          schema: createErrorResponseSchema()
+        }
+      }
+    }
+  }
+});
+
 // POST /auth/login
+
 registry.registerPath({
   method: "post",
   path: "/auth/login",
   summary: "User Login",
-  description: "Authenticates a user with email and password, returning JWT access and refresh tokens.",
+  description:
+    "Authenticates a user with email and password, returning JWT access and refresh tokens.",
   tags: ["Auth"],
   request: {
     body: {
@@ -171,7 +224,8 @@ registry.registerPath({
   method: "post",
   path: "/auth/forget-password",
   summary: "Request Password Reset OTP",
-  description: "Sends a one-time verification code to the registered email address for password recovery.",
+  description:
+    "Sends a one-time verification code to the registered email address for password recovery.",
   tags: ["Auth"],
   request: {
     body: {
@@ -287,7 +341,8 @@ registry.registerPath({
   method: "post",
   path: "/auth/resend-otp",
   summary: "Resend Verification OTP",
-  description: "Resends a new one-time verification code to the authenticated user's email address.",
+  description:
+    "Resends a new one-time verification code to the authenticated user's email address.",
   tags: ["Auth"],
   security: [{ [bearerAuth.name]: [] }],
   responses: {

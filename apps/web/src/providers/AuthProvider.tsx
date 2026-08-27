@@ -14,26 +14,22 @@ import type { AuthContextType, AuthUser } from "@/types";
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return cookie.get("accessToken");
-    }
-    return null;
-  });
+  const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return !!cookie.get("accessToken");
-    }
-    return false;
-  });
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const router = useRouter();
   const queryClient = useQueryClient();
 
   useEffect(() => {
     let isMounted = true;
-    if (token) {
+    const existingToken = cookie.get("accessToken");
+
+    if (existingToken) {
+      if (isMounted) {
+        setToken(existingToken);
+      }
+
       get<{ data: AuthUser }>("/user/profile")
         .then((res) => {
           if (isMounted && res?.data) {
@@ -52,11 +48,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
           }
         });
+    } else {
+      if (isMounted) {
+        setIsLoading(false);
+      }
     }
+
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, []);
 
   const login = (newToken: string, newUser?: AuthUser) => {
     cookie.set("accessToken", newToken);
