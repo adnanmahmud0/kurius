@@ -26,10 +26,11 @@ async function main() {
     //Seed Super Admin after database connection is successful
     await seedSuperAdmin();
 
-    const port = typeof config.port === "number" ? config.port : Number(config.port);
+    const port = Number(config.port) || 5000;
+    const ipAddress = (config.ip_address as string) || "0.0.0.0";
 
-    server = app.listen(port, config.ip_address as string, () => {
-      logger.info(colors.yellow(`♻️  Application listening on port:${config.port}`));
+    server = app.listen(port, ipAddress, () => {
+      logger.info(colors.yellow(`♻️  Application listening on port:${port}`));
     });
 
     //socket

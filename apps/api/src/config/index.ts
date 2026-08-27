@@ -1,12 +1,26 @@
 /* eslint-disable no-undef */
+import fs from "fs";
 import path from "path";
 
 import dotenv from "dotenv";
 
-dotenv.config({ path: path.join(process.cwd(), ".env") });
-dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
-dotenv.config({ path: path.resolve(process.cwd(), "apps/api/.env") });
+// Attempt to load .env from all common monorepo root and workspace locations
+const envPaths = [
+  path.resolve(process.cwd(), ".env"),
+  path.resolve(process.cwd(), "../../.env"),
+  path.resolve(process.cwd(), "../.env"),
+  path.resolve(__dirname, "../../../../.env"),
+  path.resolve(__dirname, "../../../.env"),
+  path.resolve(__dirname, "../../.env"),
+  path.resolve(__dirname, "../.env"),
+  path.resolve(__dirname, ".env")
+];
+
+for (const envPath of envPaths) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+  }
+}
 
 export default {
   ip_address: process.env.IP_ADDRESS,
