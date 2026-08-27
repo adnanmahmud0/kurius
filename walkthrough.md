@@ -1,91 +1,50 @@
 # Kurius Video Platform — Implementation Walkthrough
 
-## Overview
+## Summary of Completed Work
 
-The Kurius Video Platform has been completely built and typechecked across both backend (`apps/api`), frontend admin/public portal (`apps/web`), and shared packages (`@repo/types`, `@repo/validators`).
+The full Kurius Video Platform has been constructed according to the master plan:
 
----
+### 1. Database & Prisma (`apps/api/prisma/schema.prisma`)
 
-## 1. Backend Architecture & Modules (`apps/api`)
+- Added models: `Category`, `Video`, `VideoView`, `VideoLike`, `Comment`, `StorageSetting`, `LegalPolicy`.
+- User relations updated to track created videos, views, likes, and comments.
+- Generated Prisma Client v7.9.1.
+- Applied migrations and seeded default Super Admin, categories, storage settings, privacy policy, and terms of service.
 
-### Database Models (`apps/api/prisma/schema.prisma`)
+### 2. Backend Modules (`apps/api/src/app/modules/`)
 
-- **`User`**: Account identity with role (`SUPER_ADMIN`, `ADMIN`, `USER`), OTP verification (`verified`), relations to videos, views, likes, and comments.
-- **`Category`**: Video content categories with name, slug, status (`active`/`delete`), and cascade relation to videos.
-- **`Video`**: Title, subtitle, video URL, thumbnail URL, storage provider (`local` / `cloudinary`), hashtags, view counts, and cascade relations to likes/comments/views.
-- **`VideoView`**: 24-hour calendar window deduplication per user/video pair.
-- **`VideoLike`**: Unique constraint on `(userId, videoId)` for spam-free like toggles.
-- **`Comment`**: Community discussions linked to user and video.
-- **`StorageSetting`**: Dynamic storage provider switch (`local` vs `cloudinary`) with optional Cloudinary credentials.
+- **Auth Module**: Registration with OTP email (Gmail SMTP: `owwp qtnh onww dwed`), auto-resend OTP on unverified login attempts (`403` with `requiresVerification`), OTP verification, password reset.
+- **Category Module**: Public active list, admin paginated directory, create, update, deactivate.
+- **Video Module**: Cursor-based public & category feed, admin video table with filtering, multipart file uploads (up to 500MB), thumbnail cover handling, edit, and delete.
+- **Engagement Module**: Views tracking with 24-hour calendar window deduplication per user/video, and likes toggling with unique constraints.
+- **Comment Module**: Add comments, delete comments, and cursor-paginated comment list.
+- **Storage Setting Module**: Switch dynamically between Local Disk (`uploads/`) and Cloudinary, with real-time credential testing endpoint.
+- **Legal Policy Module**: Public endpoints to fetch Privacy Policy / Terms of Service (`GET /legal/:type`) and admin update endpoints (`PUT /legal/:type`).
+- **User Module**: Paginated user directory with live engagement counts and user profile detail.
+- **OpenAPI Documentation**: Fully documented in Swagger/OpenAPI registry for all routes.
 
-### Complete REST & OpenAPI Endpoints
+### 3. Frontend Portal & Admin Console (`apps/web/`)
 
-1.  **Authentication (`/api/v1/auth`)**:
-    - `POST /register`: Registers user with bcrypt password hash & dispatches Gmail OTP.
-    - `POST /login`: Validates credentials. If unverified, automatically issues a fresh OTP and responds with `403 requiresVerification: true`.
-    - `POST /verify-email`: Verifies 6-digit OTP code.
-    - `POST /forget-password` & `POST /reset-password`: Account recovery.
-2.  **Category Management (`/api/v1/categories`)**:
-    - `GET /`: Public active categories list.
-    - `GET /admin/all`: Paginated admin category directory with video counts.
-    - `POST /admin`, `PUT /admin/:id`, `DELETE /admin/:id`: Admin category CRUD.
-3.  **Video Management (`/api/v1/videos`)**:
-    - `GET /`: Cursor-based feed for mobile and web clients.
-    - `GET /:id`: Video detail with stats and engagement status.
-    - `GET /category/:categoryId`: Category-filtered cursor feed.
-    - `GET /admin/all`: Paginated admin video table with filtering by search & category.
-    - `POST /admin`: Multipart upload for video files (up to 500MB) and thumbnail images.
-    - `PUT /admin/:id` & `DELETE /admin/:id`: Metadata update and deactivation.
-4.  **Engagement & Social (`/api/v1/videos`)**:
-    - `POST /:id/view`: Records video view (deduplicated by 24-hour window per user).
-    - `POST /:id/like` & `DELETE /:id/like`: Video liking and unliking.
-    - `POST /:id/comments` & `GET /:id/comments`: Cursor-paginated comment stream.
-5.  **Dynamic Storage Settings (`/api/v1/admin/storage`)**:
-    - `GET /`: Fetches active storage provider (Local Disk or Cloudinary).
-    - `PUT /`: Switches active provider and saves Cloudinary credentials.
-    - `POST /test`: Verifies Cloudinary API credentials.
-6.  **User Directory & Analytics (`/api/v1/user`)**:
-    - `GET /`: Paginated list of users with engagement counts.
-    - `GET /:id`: User profile with metrics (videos created, total views, likes, comments).
+- **Public Pages**:
+  - `/login`: Admin login with verification redirect.
+  - `/register`: User registration.
+  - `/verify-otp`: 6-digit OTP verification screen with resend function.
+  - `/privacy`: Dynamically renders database-stored Privacy Policy.
+  - `/terms`: Dynamically renders database-stored Terms of Service.
+- **Admin Console**:
+  - `/admin`: Dashboard with live metrics (users, videos, views, likes), activity trend chart, quick actions.
+  - `/admin/categories`: Category management with Add, Edit, and Delete modals.
+  - `/admin/videos`: Video library with thumbnail preview, category filter, storage badges, engagement metrics.
+  - `/admin/videos/upload`: Video upload form with drag-and-drop file picker, progress bar, and storage destination indicator.
+  - `/admin/videos/[id]/edit`: Metadata and status editor.
+  - `/admin/users`: User directory with verification and role badges, metrics, and pagination.
+  - `/admin/users/[id]`: User profile and engagement analytics breakdown.
+  - `/admin/settings/storage`: Dynamic storage selector (Local Disk vs Cloudinary) with live connection test.
+  - `/admin/settings/privacy`: Markdown editor with live preview for Privacy Policy.
+  - `/admin/settings/terms`: Markdown editor with live preview for Terms of Service.
 
----
+### 4. Git Repositories & Dual-Push Setup
 
-## 2. Frontend Admin & Public Application (`apps/web`)
-
-### Public Pages (`apps/web/src/app/(public)`)
-
-- `GET /login`: Admin authentication form with auto-redirect to OTP verification if unverified.
-- `GET /register`: Account registration form.
-- `GET /verify-otp?email=...`: 6-digit OTP passcode verification screen with Resend OTP button.
-- `GET /privacy`: Comprehensive privacy policy for app store and public compliance.
-- `GET /terms`: Platform terms of service and acceptable use guidelines.
-
-### Admin Console (`apps/web/src/app/(admin)`)
-
-- `GET /admin`: Live overview dashboard with stat metric cards, live activity trends, and quick actions.
-- `GET /admin/categories`: Category management data table with Add, Edit, and Deactivate dialog modals.
-- `GET /admin/videos`: Video library data table with thumbnails, categories, storage badges, engagement metrics, and actions.
-- `GET /admin/videos/upload`: Video upload form with drag-and-drop file picker, thumbnail selector, upload progress indicator, and active storage badge.
-- `GET /admin/videos/[id]/edit`: Metadata and publishing status editor.
-- `GET /admin/users`: User directory data table with role badges, verification badges, engagement counts, and pagination.
-- `GET /admin/users/[id]`: User analytics profile with engagement cards.
-- `GET /admin/settings/storage`: Dynamic storage selector switching between Local Disk (Default) and Cloudinary CDN with live credential testing.
-
----
-
-## 3. Dynamic Storage Adapter
-
-- **Local Disk (Default)**: Uploads are stored in the server's `uploads/` directory with UUID naming and served statically.
-- **Cloudinary**: Uploads stream to Cloudinary API with dynamic credentials fetched from the `StorageSetting` database model, falling back to environment variables.
-
----
-
-## 4. Verification & Testing
-
-- **Typecheck Validation**:
-  ```bash
-  npx turbo typecheck
-  # Result: 5 successful, 0 errors across all 7 packages
-  ```
-- **Prisma Client Generation**: Prisma v7.9.1 generated and synced with full schema.
-- **OpenAPI Specifications**: Complete Swagger / OpenAPI documentation registered across all modules.
+- **Personal Repo**: `https://github.com/adnanmahmud0/kurius.git`
+- **Client Repo**: `https://github.com/lav283/kuriusapp_fiverr.git`
+- **Dual-Push**: Configured on `origin`. Running `git push origin main` pushes to both repositories simultaneously.
