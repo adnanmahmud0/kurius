@@ -24,12 +24,15 @@ class CategoriesSection extends GetView<HomeController> {
                 color: AppColors.textPrimary,
               ),
             ),
-            Text(
-              'See all',
-              style: GoogleFonts.outfit(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+            GestureDetector(
+              onTap: () => Get.toNamed(AppRoutes.allCategories),
+              child: Text(
+                'See all',
+                style: GoogleFonts.outfit(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
               ),
             ),
           ],

@@ -8,6 +8,7 @@ import 'package:kurius/data/models/comment/comment_model.dart';
 import 'package:kurius/data/models/user/user_model.dart';
 import 'package:kurius/data/models/video/video_item_model.dart';
 import 'package:kurius/features/user/auth/controllers/auth_controller.dart';
+import 'package:kurius/features/user/home/controllers/all_categories_controller.dart';
 import 'package:kurius/features/user/home/controllers/category_videos_controller.dart';
 import 'package:kurius/features/user/home/controllers/home_controller.dart';
 import 'package:kurius/features/user/profile/controllers/profile_controller.dart';
@@ -97,6 +98,44 @@ void main() {
     expect(json['currentPassword'], 'OldPassword123!');
     expect(json['newPassword'], 'NewSecurePassword123!');
     expect(json['confirmPassword'], 'NewSecurePassword123!');
+  });
+
+  test('CategoryModel OpenAPI Deserialization & Helper Test', () {
+    final catJson = {
+      "id": "eef0d531-c33d-4bed-b04c-6d38d7772fd8",
+      "name": "Education",
+      "slug": "education",
+      "thumbnail": "/uploads/categories/67af9512-0bb7-41e6-ad71-84f9fef70a39.jpg",
+      "status": "active",
+      "createdAt": "2026-08-27T13:26:18.649Z",
+      "updatedAt": "2026-08-29T15:11:08.403Z",
+      "_count": {"videos": 5}
+    };
+
+    final category = CategoryModel.fromJson(catJson);
+    expect(category.id, 'eef0d531-c33d-4bed-b04c-6d38d7772fd8');
+    expect(category.name, 'Education');
+    expect(category.slug, 'education');
+    expect(category.videosCount, 5);
+    expect(category.displayThumbnail, 'https://api.kuriusapp.cloud/uploads/categories/67af9512-0bb7-41e6-ad71-84f9fef70a39.jpg');
+    expect(category.title, 'Education');
+  });
+
+  test('AllCategoriesController State and Filtering Test', () {
+    final allCatController = Get.put(AllCategoriesController());
+    expect(allCatController.categories, isEmpty);
+
+    const cat1 = CategoryModel(id: '1', name: 'Comedy', slug: 'comedy', videosCount: 2);
+    const cat2 = CategoryModel(id: '2', name: 'Education', slug: 'education', videosCount: 4);
+    allCatController.categories.value = [cat1, cat2];
+    allCatController.filteredCategories.value = [cat1, cat2];
+
+    allCatController.filterCategories('Edu');
+    expect(allCatController.filteredCategories.length, 1);
+    expect(allCatController.filteredCategories.first.name, 'Education');
+
+    allCatController.filterCategories('');
+    expect(allCatController.filteredCategories.length, 2);
   });
 
   test('VideoModel & VideoItemModel API JSON Deserialization Test', () {

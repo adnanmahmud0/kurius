@@ -182,8 +182,8 @@ class CategoryVideosView extends GetView<CategoryVideosController> {
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton.icon(
-                    onPressed: () => Get.back(),
-                    icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                    onPressed: () => Get.toNamed(AppRoutes.allCategories),
+                    icon: const Icon(Icons.category_rounded, size: 18),
                     label: Text(
                       'Explore Other Categories',
                       style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
