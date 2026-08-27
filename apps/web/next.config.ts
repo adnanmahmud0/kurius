@@ -1,7 +1,14 @@
+import path from "path";
 import type { NextConfig } from "next";
 
 import bundleAnalyzer from "@next/bundle-analyzer";
+import dotenv from "dotenv";
 import type { RuleSetRule } from "webpack";
+
+dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+dotenv.config({ path: path.resolve(__dirname, ".env") });
 
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true"

@@ -4,6 +4,7 @@ import path from "path";
 import dotenv from "dotenv";
 
 dotenv.config({ path: path.join(process.cwd(), ".env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 dotenv.config({ path: path.resolve(process.cwd(), "apps/api/.env") });
 
@@ -11,8 +12,7 @@ export default {
   ip_address: process.env.IP_ADDRESS,
   database_url: process.env.DATABASE_URL,
   node_env: process.env.NODE_ENV,
-  enable_api_docs:
-    process.env.ENABLE_API_DOCS === "true" || process.env.NODE_ENV !== "production",
+  enable_api_docs: process.env.ENABLE_API_DOCS === "true" || process.env.NODE_ENV !== "production",
   port: process.env.PORT,
   bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
   branding: {
