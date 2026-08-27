@@ -4,9 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../controllers/all_categories_controller.dart';
 
-class AllCategoriesView extends StatelessWidget {
+class AllCategoriesView extends GetView<AllCategoriesController> {
   const AllCategoriesView({super.key});
 
+  @override
   AllCategoriesController get controller =>
       Get.isRegistered<AllCategoriesController>()
           ? Get.find<AllCategoriesController>()
