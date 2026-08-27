@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────
+#  .dockerignore — keep Docker build context lean
+# ─────────────────────────────────────────────────
+
+# Git
+.git
+.gitignore
+.github
+
+# Node dependencies (reinstalled inside Docker)
+node_modules
+**/node_modules
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+**/dist
+**/.next
+**/.turbo
+
+# Development tools
+.husky
+.cursor
+.agent
+.prettierignore
+prettier.config.js
+commitlint.config.js
+
+# Flutter app (not needed for API/Web Docker builds)
+apps/app
+
+# Logs
+**/logs
+**/*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+**/__tests__
+
+# Documentation
+*.md
+plan/
+walkthrough.md

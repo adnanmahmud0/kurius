@@ -1,0 +1,74 @@
+services:
+  # ─────────────────────────────────────────
+  # PostgreSQL — internal only, NOT exposed
+  # ─────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: kurius_prod_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: kurius_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - kurius_prod_pgdata:/var/lib/postgresql/data
+    # No port mapping — only reachable from within Docker network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d kurius_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - kurius_net
+
+  # ─────────────────────────────────────────
+  # Express API — accessible at localhost:5000
+  # ─────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: kurius_prod_api
+    restart: always
+    env_file: .env
+    environment:
+      # Override DATABASE_URL to use Docker internal network (service name = postgres)
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/kurius_db?schema=public
+    ports:
+      # Bind to localhost only — Nginx proxies from port 80/443
+      - "127.0.0.1:5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - kurius_net
+
+  # ─────────────────────────────────────────
+  # Next.js Web — accessible at localhost:3000
+  # ─────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # NEXT_PUBLIC_ vars are baked into JS bundle at build time
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    container_name: kurius_prod_web
+    restart: always
+    env_file: .env
+    ports:
+      # Bind to localhost only — Nginx proxies from port 80/443
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - api
+    networks:
+      - kurius_net
+
+networks:
+  kurius_net:
+    driver: bridge
+
+volumes:
+  kurius_prod_pgdata:
+    driver: local

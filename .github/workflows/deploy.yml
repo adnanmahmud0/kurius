@@ -1,0 +1,231 @@
+name: 🚀 Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # ─────────────────────────────────────────────
+  # JOB 1: Type-check the monorepo before deploy
+  # ─────────────────────────────────────────────
+  typecheck:
+    name: ✅ Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run type check
+        run: npx turbo typecheck
+
+  # ─────────────────────────────────────────────
+  # JOB 2: Deploy to Hostinger VPS via SSH
+  # ─────────────────────────────────────────────
+  deploy:
+    name: 🌐 Deploy to Hostinger VPS
+    needs: typecheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          # ── All env vars are passed securely via GitHub Secrets ──
+          DEPLOY_ENV: |
+            NODE_ENV=production
+            PORT=5000
+            IP_ADDRESS=0.0.0.0
+            ENABLE_API_DOCS=false
+            BCRYPT_SALT_ROUNDS=10
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_EXPIRE_IN=${{ secrets.JWT_EXPIRE_IN }}
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+            JWT_REFRESH_EXPIRE_IN=${{ secrets.JWT_REFRESH_EXPIRE_IN }}
+            EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+            EMAIL_USER=${{ secrets.EMAIL_USER }}
+            EMAIL_PASS=${{ secrets.EMAIL_PASS }}
+            EMAIL_PORT=${{ secrets.EMAIL_PORT }}
+            EMAIL_HOST=${{ secrets.EMAIL_HOST }}
+            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+            SUPER_ADMIN_EMAIL=${{ secrets.SUPER_ADMIN_EMAIL }}
+            SUPER_ADMIN_PASSWORD=${{ secrets.SUPER_ADMIN_PASSWORD }}
+            NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            POSTGRES_USER=postgres
+            POSTGRES_DB=kurius_db
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          envs: DEPLOY_ENV
+          command_timeout: 30m
+          script: |
+            set -e
+            export DEBIAN_FRONTEND=noninteractive
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo " [1/9] System packages & swap setup"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            # Create swap file to prevent OOM during Docker builds
+            if [ ! -f /swapfile ]; then
+              fallocate -l 2G /swapfile
+              chmod 600 /swapfile
+              mkswap /swapfile
+              swapon /swapfile
+              echo '/swapfile none swap sw 0 0' >> /etc/fstab
+              echo "✓ 2GB swap created"
+            else
+              echo "✓ Swap already exists"
+            fi
+
+            apt-get update -qq
+
+            # Install Docker if not present
+            if ! command -v docker &> /dev/null; then
+              echo "Installing Docker..."
+              curl -fsSL https://get.docker.com | sh
+              systemctl enable docker
+              systemctl start docker
+              echo "✓ Docker installed"
+            else
+              echo "✓ Docker already installed: $(docker --version)"
+            fi
+
+            # Install Nginx
+            if ! command -v nginx &> /dev/null; then
+              apt-get install -y -qq nginx
+              systemctl enable nginx
+              systemctl start nginx
+              echo "✓ Nginx installed"
+            else
+              echo "✓ Nginx already installed"
+            fi
+
+            # Install Certbot
+            if ! command -v certbot &> /dev/null; then
+              apt-get install -y -qq certbot python3-certbot-nginx
+              echo "✓ Certbot installed"
+            else
+              echo "✓ Certbot already installed"
+            fi
+
+            # Install git
+            if ! command -v git &> /dev/null; then
+              apt-get install -y -qq git
+            fi
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo " [2/9] Clone / pull repository"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            REPO_DIR="/opt/kurius"
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+
+            if [ ! -d "$REPO_DIR/.git" ]; then
+              echo "First deploy — cloning repository..."
+              git clone "$REPO_URL" "$REPO_DIR"
+              echo "✓ Repository cloned"
+            else
+              echo "Pulling latest changes..."
+              cd "$REPO_DIR"
+              git fetch origin
+              git reset --hard origin/main
+              echo "✓ Repository updated"
+            fi
+
+            cd "$REPO_DIR"
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo " [3/9] Write .env file from GitHub Secrets"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            # Write .env safely — secrets are substituted by GitHub Actions before SSH
+            printf '%s\n' "$DEPLOY_ENV" > .env
+            echo "✓ .env written ($(wc -l < .env) variables)"
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo " [4/9] Build Docker images"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            docker compose -f docker-compose.prod.yml build
+            echo "✓ Docker images built"
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo " [5/9] Start / restart containers"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            echo "✓ Containers started"
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo " [6/9] Wait for PostgreSQL to be ready"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            echo "Waiting for database..."
+            for i in $(seq 1 30); do
+              if docker exec kurius_prod_postgres pg_isready -U postgres -d kurius_db -q; then
+                echo "✓ PostgreSQL is ready"
+                break
+              fi
+              echo "  Waiting... ($i/30)"
+              sleep 2
+            done
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo " [7/9] Run database migrations"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            docker exec kurius_prod_api sh -c "cd /app/apps/api && npx prisma migrate deploy"
+            echo "✓ Migrations applied"
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo " [8/9] Seed database (idempotent — safe to re-run)"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            docker exec kurius_prod_api sh -c "cd /app/apps/api && npx tsx src/DB/seedAdmin.ts" || echo "⚠ Seed skipped or already applied"
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo " [9/9] Configure Nginx + SSL"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+            cp "$REPO_DIR/nginx/nginx.conf" /etc/nginx/sites-available/kurius
+            ln -sf /etc/nginx/sites-available/kurius /etc/nginx/sites-enabled/kurius
+            rm -f /etc/nginx/sites-enabled/default
+            nginx -t && systemctl reload nginx
+            echo "✓ Nginx configured and reloaded"
+
+            # Obtain SSL certificate (first deploy only)
+            if [ ! -d "/etc/letsencrypt/live/kuriusapp.cloud" ]; then
+              echo "Obtaining SSL certificate via Let's Encrypt..."
+              certbot --nginx \
+                -d kuriusapp.cloud \
+                -d www.kuriusapp.cloud \
+                --non-interactive \
+                --agree-tos \
+                --email ${{ secrets.EMAIL_USER }}
+              echo "✓ SSL certificate obtained"
+            else
+              echo "✓ SSL certificate already exists"
+            fi
+
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "  ✅  DEPLOYMENT COMPLETE!"
+            echo "  🌐  https://kuriusapp.cloud"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
