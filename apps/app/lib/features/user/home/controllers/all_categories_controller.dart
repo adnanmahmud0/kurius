@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../../app/routes/app_routes.dart';
 import '../../../../data/models/category/category_model.dart';
 import '../../../../data/repositories/category_repository.dart';
+import '../bindings/category_videos_binding.dart';
+import '../views/category_videos_view.dart';
 
 class AllCategoriesController extends GetxController {
   final CategoryRepository? categoryRepository;
@@ -82,8 +83,9 @@ class AllCategoriesController extends GetxController {
   }
 
   void openCategory(CategoryModel category) {
-    Get.toNamed(
-      AppRoutes.categoryVideos,
+    Get.to(
+      () => const CategoryVideosView(),
+      binding: CategoryVideosBinding(),
       arguments: {
         'category': category,
         'categoryId': category.id,

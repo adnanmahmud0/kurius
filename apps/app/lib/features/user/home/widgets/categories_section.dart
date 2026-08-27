@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../../app/routes/app_routes.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../bindings/all_categories_binding.dart';
+import '../bindings/category_videos_binding.dart';
 import '../controllers/home_controller.dart';
+import '../views/all_categories_view.dart';
+import '../views/category_videos_view.dart';
 
 class CategoriesSection extends GetView<HomeController> {
   const CategoriesSection({super.key});
@@ -25,13 +28,22 @@ class CategoriesSection extends GetView<HomeController> {
               ),
             ),
             GestureDetector(
-              onTap: () => Get.toNamed(AppRoutes.allCategories),
-              child: Text(
-                'See all',
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                Get.to(
+                  () => const AllCategoriesView(),
+                  binding: AllCategoriesBinding(),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                child: Text(
+                  'See all',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ),
@@ -84,8 +96,9 @@ class CategoriesSection extends GetView<HomeController> {
                 return GestureDetector(
                   onTap: () {
                     controller.selectCategory(category.id);
-                    Get.toNamed(
-                      AppRoutes.categoryVideos,
+                    Get.to(
+                      () => const CategoryVideosView(),
+                      binding: CategoryVideosBinding(),
                       arguments: {
                         'category': category,
                         'categoryId': category.id,

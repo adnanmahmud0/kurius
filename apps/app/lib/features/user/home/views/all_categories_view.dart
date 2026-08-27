@@ -4,11 +4,18 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../controllers/all_categories_controller.dart';
 
-class AllCategoriesView extends GetView<AllCategoriesController> {
+class AllCategoriesView extends StatelessWidget {
   const AllCategoriesView({super.key});
+
+  AllCategoriesController get controller =>
+      Get.isRegistered<AllCategoriesController>()
+          ? Get.find<AllCategoriesController>()
+          : Get.put(AllCategoriesController());
 
   @override
   Widget build(BuildContext context) {
+    final ctrl = controller;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -48,20 +55,20 @@ class AllCategoriesView extends GetView<AllCategoriesController> {
                   ],
                 ),
                 child: TextField(
-                  controller: controller.searchController,
-                  onChanged: controller.filterCategories,
+                  controller: ctrl.searchController,
+                  onChanged: ctrl.filterCategories,
                   style: GoogleFonts.outfit(fontSize: 14, color: AppColors.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'Search categories...',
                     hintStyle: GoogleFonts.outfit(fontSize: 14, color: AppColors.textMuted),
                     prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 22),
                     suffixIcon: Obx(() {
-                      if (controller.searchController.text.isNotEmpty) {
+                      if (ctrl.searchController.text.isNotEmpty) {
                         return IconButton(
                           icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textMuted),
                           onPressed: () {
-                            controller.searchController.clear();
-                            controller.filterCategories('');
+                            ctrl.searchController.clear();
+                            ctrl.filterCategories('');
                           },
                         );
                       }
@@ -77,13 +84,13 @@ class AllCategoriesView extends GetView<AllCategoriesController> {
             // Categories Grid
             Expanded(
               child: Obx(() {
-                if (controller.isLoading.value && controller.categories.isEmpty) {
+                if (ctrl.isLoading.value && ctrl.categories.isEmpty) {
                   return const Center(
                     child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2.5),
                   );
                 }
 
-                if (controller.filteredCategories.isEmpty) {
+                if (ctrl.filteredCategories.isEmpty) {
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -115,7 +122,7 @@ class AllCategoriesView extends GetView<AllCategoriesController> {
                 }
 
                 return RefreshIndicator(
-                  onRefresh: controller.refreshCategories,
+                  onRefresh: ctrl.refreshCategories,
                   color: AppColors.primary,
                   child: GridView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -125,13 +132,13 @@ class AllCategoriesView extends GetView<AllCategoriesController> {
                       mainAxisSpacing: 14,
                       childAspectRatio: 0.95,
                     ),
-                    itemCount: controller.filteredCategories.length,
+                    itemCount: ctrl.filteredCategories.length,
                     itemBuilder: (context, index) {
-                      final category = controller.filteredCategories[index];
+                      final category = ctrl.filteredCategories[index];
                       final thumbUrl = category.displayThumbnail;
 
                       return GestureDetector(
-                        onTap: () => controller.openCategory(category),
+                        onTap: () => ctrl.openCategory(category),
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white,

@@ -4,10 +4,17 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../video_scroll/models/video_model.dart';
+import '../bindings/all_categories_binding.dart';
 import '../controllers/category_videos_controller.dart';
+import 'all_categories_view.dart';
 
-class CategoryVideosView extends GetView<CategoryVideosController> {
+class CategoryVideosView extends StatelessWidget {
   const CategoryVideosView({super.key});
+
+  CategoryVideosController get controller =>
+      Get.isRegistered<CategoryVideosController>()
+          ? Get.find<CategoryVideosController>()
+          : Get.put(CategoryVideosController());
 
   @override
   Widget build(BuildContext context) {
@@ -182,7 +189,12 @@ class CategoryVideosView extends GetView<CategoryVideosController> {
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton.icon(
-                    onPressed: () => Get.toNamed(AppRoutes.allCategories),
+                    onPressed: () {
+                      Get.to(
+                        () => const AllCategoriesView(),
+                        binding: AllCategoriesBinding(),
+                      );
+                    },
                     icon: const Icon(Icons.category_rounded, size: 18),
                     label: Text(
                       'Explore Other Categories',
