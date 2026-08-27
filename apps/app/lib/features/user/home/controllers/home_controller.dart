@@ -26,7 +26,7 @@ class HomeController extends GetxController {
   // Selected Category ID
   final RxString selectedCategoryId = ''.obs;
 
-  // Fact of the Day / Motivational Message
+  // Fact of the Day / Random Motivational Message
   final RxString factOfTheDay = ''.obs;
   final RxString factAuthor = ''.obs;
   final Rx<MotivationalMessageModel?> motivationalMessage = Rx<MotivationalMessageModel?>(null);
@@ -77,23 +77,18 @@ class HomeController extends GetxController {
       }
     }
 
-    // 2. Fetch Motivational Messages (Fact of the Day)
+    // 2. Fetch Random Motivational Message (Fact of the Day): GET /motivational-messages/random
     if (quoteRepo != null) {
       try {
-        final quoteResponse = await quoteRepo.getMotivationalMessages(
-          page: 1,
-          limit: 20,
-          status: 'active',
-        );
-
-        if (quoteResponse.data != null && quoteResponse.data!.isNotEmpty) {
-          final firstMsg = quoteResponse.data!.first;
-          motivationalMessage.value = firstMsg;
-          factOfTheDay.value = firstMsg.message;
-          factAuthor.value = firstMsg.displayAuthor;
+        final quoteResponse = await quoteRepo.getRandomMotivationalMessage();
+        if (quoteResponse.data != null) {
+          final msg = quoteResponse.data!;
+          motivationalMessage.value = msg;
+          factOfTheDay.value = msg.message;
+          factAuthor.value = msg.displayAuthor;
         }
       } catch (e) {
-        debugPrint('⚠️ [HomeController.loadHomeData] Motivational quote fetch note: $e');
+        debugPrint('⚠️ [HomeController.loadHomeData] Random motivational quote fetch note: $e');
       }
     }
 

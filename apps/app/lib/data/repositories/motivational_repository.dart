@@ -9,7 +9,24 @@ class MotivationalRepository {
 
   const MotivationalRepository({this.apiClient});
 
-  /// Fetch motivational messages list: GET /motivational-messages
+  /// Fetch a single random active motivational message: GET /motivational-messages/random
+  Future<ApiResponse<MotivationalMessageModel>> getRandomMotivationalMessage() async {
+    debugPrint('💡 [MotivationalRepository.getRandomMotivationalMessage] Fetching random message...');
+    final client = apiClient;
+    if (client == null) {
+      return const ApiResponse(success: false, message: 'ApiClient not initialized');
+    }
+
+    final response = await client.get<MotivationalMessageModel>(
+      ApiEndpoints.randomMotivationalMessage,
+      fromJsonT: (data) => MotivationalMessageModel.fromJson(data as Map<String, dynamic>),
+    );
+
+    debugPrint('💡 [MotivationalRepository.getRandomMotivationalMessage] Received: ${response.data?.message}');
+    return response;
+  }
+
+  /// Fetch paginated motivational messages list: GET /motivational-messages
   Future<ApiResponse<List<MotivationalMessageModel>>> getMotivationalMessages({
     int page = 1,
     int limit = 20,
@@ -44,7 +61,6 @@ class MotivationalRepository {
       },
     );
 
-    debugPrint('💡 [MotivationalRepository.getMotivationalMessages] Received ${response.data?.length ?? 0} messages');
     return response;
   }
 }
