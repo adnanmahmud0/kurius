@@ -319,6 +319,6 @@ void main() {
     final homeController = Get.put(HomeController());
     expect(homeController.categories, isEmpty);
     expect(homeController.latestVideos, isEmpty);
-    expect(homeController.factOfTheDay.value, '');
+    expect(homeController.factOfTheDay.value, isNotEmpty);
   });
 }

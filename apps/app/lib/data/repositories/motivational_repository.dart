@@ -14,16 +14,61 @@ class MotivationalRepository {
     debugPrint('💡 [MotivationalRepository.getRandomMotivationalMessage] Fetching random message...');
     final client = apiClient;
     if (client == null) {
-      return const ApiResponse(success: false, message: 'ApiClient not initialized');
+      return const ApiResponse(
+        success: true,
+        data: MotivationalMessageModel(
+          id: 'default',
+          message: 'Success is not final, failure is not fatal: It is the courage to continue that counts.',
+          author: 'Winston Churchill',
+        ),
+      );
     }
 
-    final response = await client.get<MotivationalMessageModel>(
-      ApiEndpoints.randomMotivationalMessage,
-      fromJsonT: (data) => MotivationalMessageModel.fromJson(data as Map<String, dynamic>),
-    );
+    try {
+      final response = await client.get<MotivationalMessageModel>(
+        ApiEndpoints.randomMotivationalMessage,
+        fromJsonT: (data) {
+          if (data is Map<String, dynamic>) {
+            return MotivationalMessageModel.fromJson(data);
+          } else if (data is List && data.isNotEmpty) {
+            return MotivationalMessageModel.fromJson(data.first as Map<String, dynamic>);
+          }
+          return const MotivationalMessageModel(id: '', message: '');
+        },
+      );
 
-    debugPrint('💡 [MotivationalRepository.getRandomMotivationalMessage] Received: ${response.data?.message}');
-    return response;
+      if (response.data != null && response.data!.message.isNotEmpty) {
+        debugPrint('💡 [MotivationalRepository.getRandomMotivationalMessage] Received: ${response.data?.message}');
+        return response;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [MotivationalRepository.getRandomMotivationalMessage] Random endpoint note: $e');
+    }
+
+    // Fallback: GET /motivational-messages?page=1&limit=10&status=active
+    try {
+      final listResponse = await getMotivationalMessages(limit: 10, status: 'active');
+      if (listResponse.data != null && listResponse.data!.isNotEmpty) {
+        final randomItem = (listResponse.data!..shuffle()).first;
+        return ApiResponse(
+          success: true,
+          statusCode: 200,
+          data: randomItem,
+          message: listResponse.message,
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ [MotivationalRepository.getRandomMotivationalMessage] Fallback list note: $e');
+    }
+
+    return const ApiResponse(
+      success: true,
+      data: MotivationalMessageModel(
+        id: 'default',
+        message: 'Success is not final, failure is not fatal: It is the courage to continue that counts.',
+        author: 'Winston Churchill',
+      ),
+    );
   }
 
   /// Fetch paginated motivational messages list: GET /motivational-messages
