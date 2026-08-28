@@ -110,9 +110,11 @@ class ExploreVideoGrid extends GetView<DiscoverController> {
         );
       }
 
-      final videos = controller.filteredVideos;
+      final videos = controller.displayedVideos;
 
       if (videos.isEmpty) {
+        final isSearching = controller.isSearching.value && controller.searchQuery.value.isNotEmpty;
+
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 20),
@@ -124,10 +126,14 @@ class ExploreVideoGrid extends GetView<DiscoverController> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.video_library_outlined, size: 40, color: AppColors.textMuted),
+              Icon(
+                isSearching ? Icons.search_off_rounded : Icons.video_library_outlined,
+                size: 40,
+                color: AppColors.textMuted,
+              ),
               const SizedBox(height: 12),
               Text(
-                'No Video or information found',
+                isSearching ? 'No matching videos found' : 'No Video or information found',
                 style: GoogleFonts.outfit(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -136,13 +142,29 @@ class ExploreVideoGrid extends GetView<DiscoverController> {
               ),
               const SizedBox(height: 4),
               Text(
-                'No videos found in "${controller.selectedCategory.value}". Try another category.',
+                isSearching
+                    ? 'No videos match "${controller.searchQuery.value}".'
+                    : 'No videos found in "${controller.selectedCategory.value}". Try another category.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.outfit(
                   fontSize: 13,
                   color: AppColors.textMuted,
                 ),
               ),
+              if (isSearching) ...[
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: controller.clearSearch,
+                  child: Text(
+                    'Clear Search',
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );

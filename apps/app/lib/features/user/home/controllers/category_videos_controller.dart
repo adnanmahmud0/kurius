@@ -20,8 +20,13 @@ class CategoryVideosController extends GetxController {
   final RxString categoryId = ''.obs;
   final RxString categoryName = 'Category'.obs;
 
-  // Video List & States
+  // Video List & Search States
   final RxList<VideoItemModel> videos = <VideoItemModel>[].obs;
+  final RxList<VideoItemModel> searchFilteredVideos = <VideoItemModel>[].obs;
+  final RxBool isSearching = false.obs;
+  final RxString searchQuery = ''.obs;
+  final TextEditingController searchController = TextEditingController();
+
   final RxBool isLoading = false.obs;
   final RxBool isLoadingMore = false.obs;
   final RxBool isRefreshing = false.obs;
@@ -65,7 +70,8 @@ class CategoryVideosController extends GetxController {
             scrollController.position.maxScrollExtent - 200 &&
         hasNextPage.value &&
         !isLoadingMore.value &&
-        !isLoading.value) {
+        !isLoading.value &&
+        !isSearching.value) {
       loadMoreVideos();
     }
   }
@@ -75,6 +81,43 @@ class CategoryVideosController extends GetxController {
       (Get.isRegistered<VideoRepository>()
           ? Get.find<VideoRepository>()
           : const VideoRepository());
+
+  List<VideoItemModel> get displayedVideos =>
+      isSearching.value && searchQuery.value.isNotEmpty
+          ? searchFilteredVideos
+          : videos;
+
+  void toggleSearch() {
+    isSearching.value = !isSearching.value;
+    if (!isSearching.value) {
+      clearSearch();
+    }
+  }
+
+  void filterVideos(String query) {
+    searchQuery.value = query;
+    final term = query.trim().toLowerCase();
+    if (term.isEmpty) {
+      searchFilteredVideos.value = videos;
+    } else {
+      searchFilteredVideos.value = videos.where((v) {
+        final title = v.title.toLowerCase();
+        final subtitle = v.subtitle?.toLowerCase() ?? '';
+        final creator = v.creatorName.toLowerCase();
+        final tags = v.hashtags.join(' ').toLowerCase();
+        return title.contains(term) ||
+            subtitle.contains(term) ||
+            creator.contains(term) ||
+            tags.contains(term);
+      }).toList();
+    }
+  }
+
+  void clearSearch() {
+    searchController.clear();
+    searchQuery.value = '';
+    searchFilteredVideos.value = videos;
+  }
 
   /// Load initial page for the category (resets cursor)
   Future<void> loadCategoryVideos() async {
@@ -105,16 +148,19 @@ class CategoryVideosController extends GetxController {
 
       if (res.data != null) {
         videos.value = res.data!;
+        searchFilteredVideos.value = res.data!;
         nextCursor.value = res.meta?.nextCursor;
         hasNextPage.value = res.meta?.hasNextPage ?? (res.meta?.nextCursor != null);
         isUnauthorized.value = false;
       } else {
         videos.value = [];
+        searchFilteredVideos.value = [];
         hasNextPage.value = false;
       }
     } on UnauthorizedException {
       isUnauthorized.value = true;
       videos.value = [];
+      searchFilteredVideos.value = [];
     } catch (e) {
       debugPrint('⚠️ [CategoryVideosController.loadCategoryVideos] Error: $e');
       if (e.toString().contains('401') || e.toString().toLowerCase().contains('authorized')) {
@@ -144,6 +190,11 @@ class CategoryVideosController extends GetxController {
 
       if (res.data != null) {
         videos.value = res.data!;
+        if (searchQuery.value.isEmpty) {
+          searchFilteredVideos.value = res.data!;
+        } else {
+          filterVideos(searchQuery.value);
+        }
         nextCursor.value = res.meta?.nextCursor;
         hasNextPage.value = res.meta?.hasNextPage ?? (res.meta?.nextCursor != null);
       }
@@ -180,6 +231,11 @@ class CategoryVideosController extends GetxController {
         final uniqueNew = res.data!.where((v) => !existingIds.contains(v.id)).toList();
 
         videos.addAll(uniqueNew);
+        if (searchQuery.value.isEmpty) {
+          searchFilteredVideos.value = videos;
+        } else {
+          filterVideos(searchQuery.value);
+        }
         nextCursor.value = res.meta?.nextCursor;
         hasNextPage.value = res.meta?.hasNextPage ?? (res.meta?.nextCursor != null);
 
@@ -198,12 +254,13 @@ class CategoryVideosController extends GetxController {
 
   /// Open video scroll player starting at selected index
   void openVideo(int index) {
-    if (videos.isEmpty || index < 0 || index >= videos.length) return;
+    final list = displayedVideos;
+    if (list.isEmpty || index < 0 || index >= list.length) return;
     Get.toNamed(
       AppRoutes.videoScroll,
       arguments: {
         'initialIndex': index,
-        'videos': videos.map((v) => VideoModel.fromVideoItem(v)).toList(),
+        'videos': list.map((v) => VideoModel.fromVideoItem(v)).toList(),
         'categoryId': categoryId.value,
       },
     );
@@ -212,6 +269,7 @@ class CategoryVideosController extends GetxController {
   @override
   void onClose() {
     scrollController.dispose();
+    searchController.dispose();
     super.onClose();
   }
 }

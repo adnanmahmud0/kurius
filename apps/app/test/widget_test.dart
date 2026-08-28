@@ -259,6 +259,32 @@ void main() {
     catController.categoryId.value = category.id;
     catController.categoryName.value = category.title;
     expect(catController.categoryName.value, 'Comedy');
+
+    // Test Search Toggle & Filtering
+    expect(catController.isSearching.value, isFalse);
+    catController.toggleSearch();
+    expect(catController.isSearching.value, isTrue);
+
+    const video1 = VideoItemModel(
+      id: '1',
+      title: 'Funny Moments in Science',
+      categoryId: 'cat-1',
+      videoUrl: 'https://example.com/1.mp4',
+    );
+    const video2 = VideoItemModel(
+      id: '2',
+      title: 'Calculus Basics',
+      categoryId: 'cat-1',
+      videoUrl: 'https://example.com/2.mp4',
+    );
+    catController.videos.value = [video1, video2];
+
+    catController.filterVideos('Science');
+    expect(catController.displayedVideos.length, 1);
+    expect(catController.displayedVideos.first.title, 'Funny Moments in Science');
+
+    catController.clearSearch();
+    expect(catController.searchQuery.value, '');
   });
 
   test('PaginationMeta Cursor and Pagination Parsing Test', () {

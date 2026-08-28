@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../../core/network/api_exceptions.dart';
@@ -23,6 +23,12 @@ class DiscoverController extends GetxController {
   final RxList<String> categories = <String>['All'].obs;
   final Map<String, String> categoryIdMap = {};
 
+  // Search State & Observables
+  final RxBool isSearching = false.obs;
+  final RxString searchQuery = ''.obs;
+  final TextEditingController searchController = TextEditingController();
+  final RxList<VideoModel> searchFilteredVideos = <VideoModel>[].obs;
+
   // Loading, Unauthorized & Error States
   final RxBool isLoading = false.obs;
   final RxBool isUnauthorized = false.obs;
@@ -32,10 +38,49 @@ class DiscoverController extends GetxController {
   final RxList<VideoModel> allVideos = <VideoModel>[].obs;
   final RxList<VideoModel> filteredVideos = <VideoModel>[].obs;
 
+  List<VideoModel> get displayedVideos =>
+      isSearching.value && searchQuery.value.isNotEmpty
+          ? searchFilteredVideos
+          : filteredVideos;
+
   @override
   void onInit() {
     super.onInit();
     loadDiscoverData();
+  }
+
+  void toggleSearch() {
+    isSearching.value = !isSearching.value;
+    if (!isSearching.value) {
+      clearSearch();
+    }
+  }
+
+  void filterSearch(String query) {
+    searchQuery.value = query;
+    final term = query.trim().toLowerCase();
+    if (term.isEmpty) {
+      searchFilteredVideos.value = filteredVideos;
+    } else {
+      searchFilteredVideos.value = filteredVideos.where((v) {
+        final title = v.title.toLowerCase();
+        final desc = v.description.toLowerCase();
+        final category = v.categoryName.toLowerCase();
+        final creator = v.creatorName.toLowerCase();
+        final tags = v.hashtags.join(' ').toLowerCase();
+        return title.contains(term) ||
+            desc.contains(term) ||
+            category.contains(term) ||
+            creator.contains(term) ||
+            tags.contains(term);
+      }).toList();
+    }
+  }
+
+  void clearSearch() {
+    searchController.clear();
+    searchQuery.value = '';
+    searchFilteredVideos.value = filteredVideos;
   }
 
   Future<void> loadDiscoverData() async {
@@ -95,7 +140,7 @@ class DiscoverController extends GetxController {
       }
     }
 
-    filterCategory(selectedCategory.value);
+    await filterCategory(selectedCategory.value);
     isLoading.value = false;
   }
 
@@ -103,45 +148,62 @@ class DiscoverController extends GetxController {
     selectedCategory.value = category;
     if (category == 'All') {
       filteredVideos.value = allVideos;
-      return;
-    }
+    } else {
+      final catId = categoryIdMap[category];
+      final vidRepo = videoRepository ??
+          (Get.isRegistered<VideoRepository>()
+              ? Get.find<VideoRepository>()
+              : null);
 
-    final catId = categoryIdMap[category];
-    final vidRepo = videoRepository ??
-        (Get.isRegistered<VideoRepository>()
-            ? Get.find<VideoRepository>()
-            : null);
-
-    if (catId != null && vidRepo != null) {
-      try {
-        final catRes = await vidRepo.getVideosByCategory(catId, limit: 20);
-        if (catRes.data != null && catRes.data!.isNotEmpty) {
-          filteredVideos.value = catRes.data!
-              .map((item) => VideoModel.fromVideoItem(item))
+      if (catId != null && vidRepo != null) {
+        try {
+          final catRes = await vidRepo.getVideosByCategory(catId, limit: 20);
+          if (catRes.data != null && catRes.data!.isNotEmpty) {
+            filteredVideos.value = catRes.data!
+                .map((item) => VideoModel.fromVideoItem(item))
+                .toList();
+          } else {
+            filteredVideos.value = allVideos
+                .where((v) => v.categoryName.toLowerCase() == category.toLowerCase())
+                .toList();
+          }
+        } catch (e) {
+          debugPrint('⚠️ [DiscoverController.filterCategory] Error fetching category videos: $e');
+          filteredVideos.value = allVideos
+              .where((v) => v.categoryName.toLowerCase() == category.toLowerCase())
               .toList();
-          return;
         }
-      } catch (e) {
-        debugPrint('⚠️ [DiscoverController.filterCategory] Error fetching category videos: $e');
+      } else {
+        filteredVideos.value = allVideos
+            .where((v) => v.categoryName.toLowerCase() == category.toLowerCase())
+            .toList();
       }
     }
 
-    // Fallback local filtering
-    filteredVideos.value = allVideos
-        .where((v) => v.categoryName.toLowerCase() == category.toLowerCase())
-        .toList();
+    if (searchQuery.value.isNotEmpty) {
+      filterSearch(searchQuery.value);
+    } else {
+      searchFilteredVideos.value = filteredVideos;
+    }
   }
 
   void openVideo(int initialIndex) {
-    if (filteredVideos.isEmpty) return;
+    final list = displayedVideos;
+    if (list.isEmpty || initialIndex < 0 || initialIndex >= list.length) return;
     Get.toNamed(
       AppRoutes.videoScroll,
       arguments: {
         'initialIndex': initialIndex,
-        'videos': filteredVideos.toList(),
+        'videos': list.toList(),
         if (selectedCategory.value != 'All' && categoryIdMap.containsKey(selectedCategory.value))
           'categoryId': categoryIdMap[selectedCategory.value],
       },
     );
+  }
+
+  @override
+  void onClose() {
+    searchController.dispose();
+    super.onClose();
   }
 }
