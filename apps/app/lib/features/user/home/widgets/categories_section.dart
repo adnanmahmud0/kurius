@@ -92,6 +92,7 @@ class CategoriesSection extends GetView<HomeController> {
                 final category = controller.categories[index];
                 final isSelected =
                     controller.selectedCategoryId.value == category.id;
+                final thumbUrl = category.displayThumbnail;
 
                 return GestureDetector(
                   onTap: () {
@@ -123,11 +124,28 @@ class CategoriesSection extends GetView<HomeController> {
                             ),
                           ],
                         ),
-                        child: Icon(
-                          category.displayIcon,
-                          color: Colors.white,
-                          size: 28,
-                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: thumbUrl != null
+                            ? Image.network(
+                                thumbUrl,
+                                fit: BoxFit.cover,
+                                width: 58,
+                                height: 58,
+                                errorBuilder: (ctx, err, stack) => Center(
+                                  child: Icon(
+                                    category.displayIcon,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Icon(
+                                  category.displayIcon,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
                       ),
                       const SizedBox(height: 8),
                       Text(
