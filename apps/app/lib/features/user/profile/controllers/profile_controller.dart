@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../app/routes/app_routes.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/network/error_handler.dart';
 import '../../../../data/models/auth/auth_requests.dart';
 import '../../../../data/models/user/user_model.dart';
@@ -23,6 +26,7 @@ class ProfileController extends GetxController {
   // State
   final RxBool isLoading = false.obs;
   final RxBool isUpdating = false.obs;
+  final RxBool isDeletingAccount = false.obs;
   final RxString errorMessage = ''.obs;
 
   // Real User Data
@@ -51,6 +55,11 @@ class ProfileController extends GetxController {
   final RxBool obscureConfirmPassword = true.obs;
   final RxString changePasswordSuccessMessage = ''.obs;
   final RxString changePasswordErrorMessage = ''.obs;
+
+  // Delete Account Form Controllers & Observables
+  final TextEditingController deleteAccountPasswordController = TextEditingController();
+  final RxBool obscureDeletePassword = true.obs;
+  final RxString deleteAccountErrorMessage = ''.obs;
 
   // Saved Videos & Learning History Lists
   final RxList<String> savedVideoIds = <String>[].obs;
@@ -306,6 +315,329 @@ class ProfileController extends GetxController {
   }
 
   // ---------------------------------------------------------------------------
+  // Delete Account Flow (Check Password -> Confirm Pop-up -> DELETE /user/profile)
+  // ---------------------------------------------------------------------------
+
+  void toggleDeletePasswordVisibility() {
+    obscureDeletePassword.value = !obscureDeletePassword.value;
+  }
+
+  /// Step 1: Prompt for password verification
+  void promptDeleteAccount(BuildContext context) {
+    deleteAccountPasswordController.clear();
+    deleteAccountErrorMessage.value = '';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.lock_person_rounded, color: AppColors.error, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Confirm Password',
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Please enter your account password to verify ownership before proceeding with account deletion.',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Password Input Field
+                Obx(() => TextField(
+                      controller: deleteAccountPasswordController,
+                      obscureText: obscureDeletePassword.value,
+                      style: GoogleFonts.outfit(fontSize: 14, color: AppColors.textPrimary),
+                      decoration: InputDecoration(
+                        hintText: 'Enter your password',
+                        hintStyle: GoogleFonts.outfit(fontSize: 13, color: AppColors.textMuted),
+                        prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.textSecondary, size: 20),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureDeletePassword.value ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            color: AppColors.textMuted,
+                            size: 20,
+                          ),
+                          onPressed: toggleDeletePasswordVisibility,
+                        ),
+                        filled: true,
+                        fillColor: AppColors.cardBackground,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.cardBorder),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.cardBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      ),
+                    )),
+
+                // Error Message if any
+                Obx(() {
+                  if (deleteAccountErrorMessage.value.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      deleteAccountErrorMessage.value,
+                      style: GoogleFonts.outfit(fontSize: 12, color: AppColors.error),
+                    ),
+                  );
+                }),
+
+                const SizedBox(height: 20),
+
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.cardBorder),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final password = deleteAccountPasswordController.text.trim();
+                          if (password.isEmpty) {
+                            deleteAccountErrorMessage.value = 'Password is required to proceed.';
+                            return;
+                          }
+                          if (password.length < 6) {
+                            deleteAccountErrorMessage.value = 'Invalid password format.';
+                            return;
+                          }
+
+                          // Close password dialog and open final confirmation pop-up
+                          Navigator.pop(dialogContext);
+                          _showFinalDeleteConfirmationDialog(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Continue',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Step 2: Final Confirmation Pop-up
+  void _showFinalDeleteConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (confirmContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.error,
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Are you want to delete your profile?',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+                  ),
+                  child: Text(
+                    'note: if you delete your profile all the data will remove you can not restore them',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.error,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(confirmContext),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.cardBorder),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Obx(
+                        () => ElevatedButton(
+                          onPressed: isDeletingAccount.value
+                              ? null
+                              : () async {
+                                  Navigator.pop(confirmContext);
+                                  await _executeDeleteAccount();
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.error,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: isDeletingAccount.value
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : Text(
+                                  'Delete Now',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Step 3: Execute DELETE /user/profile
+  Future<void> _executeDeleteAccount() async {
+    isDeletingAccount.value = true;
+
+    try {
+      final repo = userRepository ??
+          (Get.isRegistered<UserRepository>()
+              ? Get.find<UserRepository>()
+              : null);
+
+      if (repo != null) {
+        await repo.deleteAccount();
+
+        // Clear local credentials and reset state
+        await authController.logout();
+
+        ErrorHandler.showSuccessSnackbar(
+          'Your account has been deleted successfully.',
+          title: 'Account Deleted',
+        );
+
+        Get.offAllNamed(AppRoutes.auth);
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ProfileController._executeDeleteAccount] Delete failed: $e');
+      ErrorHandler.showErrorSnackbar(
+        e,
+        customTitle: 'Delete Account Failed',
+      );
+    } finally {
+      isDeletingAccount.value = false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Management: Saved Videos & Learning History
   // ---------------------------------------------------------------------------
 
@@ -337,6 +669,7 @@ class ProfileController extends GetxController {
     oldPasswordController.dispose();
     newPasswordController.dispose();
     confirmPasswordController.dispose();
+    deleteAccountPasswordController.dispose();
     super.onClose();
   }
 }

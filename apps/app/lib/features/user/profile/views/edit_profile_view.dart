@@ -196,6 +196,25 @@ class EditProfileView extends GetView<ProfileController> {
                             ),
                     ),
                   )),
+
+              const SizedBox(height: 24),
+
+              // Delete Account Button (Danger Area)
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => controller.promptDeleteAccount(context),
+                  icon: const Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 20),
+                  label: Text(
+                    'Delete Account',
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.error,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
             ],
           ),
         ),

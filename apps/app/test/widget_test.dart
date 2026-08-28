@@ -86,6 +86,12 @@ void main() {
     profileController.learningHistoryIds.add('h1');
     profileController.clearLearningHistory();
     expect(profileController.learningHistoryIds, isEmpty);
+
+    // Test Delete Account state & toggle visibility
+    expect(profileController.isDeletingAccount.value, isFalse);
+    expect(profileController.obscureDeletePassword.value, isTrue);
+    profileController.toggleDeletePasswordVisibility();
+    expect(profileController.obscureDeletePassword.value, isFalse);
   });
 
   test('ChangePasswordRequest DTO JSON Serialization Test', () {

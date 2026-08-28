@@ -28,7 +28,7 @@ class ApiEndpoints {
   // User Profile Endpoints
   static const String userProfile = '$apiPrefix/user/profile';
   static const String updateProfile = '$apiPrefix/user/profile';
-  static const String deleteAccount = '$apiPrefix/user/delete-account';
+  static const String deleteAccount = '$apiPrefix/user/profile';
 
   // Video Endpoints
   static const String videos = '$apiPrefix/videos';
