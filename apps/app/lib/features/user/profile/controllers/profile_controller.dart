@@ -26,6 +26,7 @@ class ProfileController extends GetxController {
   // State
   final RxBool isLoading = false.obs;
   final RxBool isUpdating = false.obs;
+  final RxBool isVerifyingPassword = false.obs;
   final RxBool isDeletingAccount = false.obs;
   final RxString errorMessage = ''.obs;
 
@@ -322,10 +323,11 @@ class ProfileController extends GetxController {
     obscureDeletePassword.value = !obscureDeletePassword.value;
   }
 
-  /// Step 1: Prompt for password verification
+  /// Step 1: Prompt for password verification and authenticate ownership
   void promptDeleteAccount(BuildContext context) {
     deleteAccountPasswordController.clear();
     deleteAccountErrorMessage.value = '';
+    isVerifyingPassword.value = false;
 
     showDialog(
       context: context,
@@ -445,34 +447,84 @@ class ProfileController extends GetxController {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          final password = deleteAccountPasswordController.text.trim();
-                          if (password.isEmpty) {
-                            deleteAccountErrorMessage.value = 'Password is required to proceed.';
-                            return;
-                          }
-                          if (password.length < 6) {
-                            deleteAccountErrorMessage.value = 'Invalid password format.';
-                            return;
-                          }
+                      child: Obx(
+                        () => ElevatedButton(
+                          onPressed: isVerifyingPassword.value
+                              ? null
+                              : () async {
+                                  final password = deleteAccountPasswordController.text.trim();
+                                  if (password.isEmpty) {
+                                    deleteAccountErrorMessage.value = 'Password is required to proceed.';
+                                    return;
+                                  }
+                                  if (password.length < 6) {
+                                    deleteAccountErrorMessage.value = 'Password must be at least 6 characters.';
+                                    return;
+                                  }
 
-                          // Close password dialog and open final confirmation pop-up
-                          Navigator.pop(dialogContext);
-                          _showFinalDeleteConfirmationDialog(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.error,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: Text(
-                          'Continue',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                                  isVerifyingPassword.value = true;
+                                  deleteAccountErrorMessage.value = '';
+
+                                  final email = userEmail.value.isNotEmpty
+                                      ? userEmail.value
+                                      : authController.userEmail.value;
+
+                                  final repo = authRepository ??
+                                      (Get.isRegistered<AuthRepository>()
+                                          ? Get.find<AuthRepository>()
+                                          : null);
+
+                                  if (repo != null && email.isNotEmpty) {
+                                    try {
+                                      final checkRes = await repo.login(LoginRequest(
+                                        email: email,
+                                        password: password,
+                                      ));
+
+                                      if (!checkRes.success || checkRes.data == null) {
+                                        deleteAccountErrorMessage.value =
+                                            'Incorrect password. Please enter your valid account password.';
+                                        isVerifyingPassword.value = false;
+                                        return;
+                                      }
+                                    } catch (e) {
+                                      debugPrint('⚠️ [ProfileController.promptDeleteAccount] Password check error: $e');
+                                      deleteAccountErrorMessage.value =
+                                          'Incorrect password. Please try again.';
+                                      isVerifyingPassword.value = false;
+                                      return;
+                                    }
+                                  }
+
+                                  isVerifyingPassword.value = false;
+
+                                  // Close password dialog and open final confirmation pop-up
+                                  if (dialogContext.mounted) {
+                                    Navigator.pop(dialogContext);
+                                  }
+                                  if (context.mounted) {
+                                    _showFinalDeleteConfirmationDialog(context);
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.error,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
+                          child: isVerifyingPassword.value
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : Text(
+                                  'Continue',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -486,7 +538,7 @@ class ProfileController extends GetxController {
     );
   }
 
-  /// Step 2: Final Confirmation Pop-up
+  /// Step 2: Final Confirmation Pop-up with exact warning message
   void _showFinalDeleteConfirmationDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -530,7 +582,7 @@ class ProfileController extends GetxController {
                     border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
                   ),
                   child: Text(
-                    'note: if you delete your profile all the data will remove you can not restore them',
+                    'Note: If you delete your profile, all of your data will be permanently removed and cannot be restored.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.outfit(
                       fontSize: 13,
