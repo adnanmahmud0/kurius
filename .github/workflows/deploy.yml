@@ -217,22 +217,15 @@ jobs:
 
             # Obtain / Expand SSL certificate — covers main domain + api + admin subdomains
             certbot certonly --nginx \
+              --force-renewal \
+              --cert-name kuriusapp.cloud \
               -d kuriusapp.cloud \
               -d www.kuriusapp.cloud \
               -d api.kuriusapp.cloud \
               -d admin.kuriusapp.cloud \
               --non-interactive \
               --agree-tos \
-              --email ${{ secrets.EMAIL_USER }} \
-              --expand || certbot --nginx \
-              -d kuriusapp.cloud \
-              -d www.kuriusapp.cloud \
-              -d api.kuriusapp.cloud \
-              -d admin.kuriusapp.cloud \
-              --non-interactive \
-              --agree-tos \
-              --email ${{ secrets.EMAIL_USER }} \
-              --expand || true
+              --email ${{ secrets.EMAIL_USER }} || true
 
             mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
             cp "$REPO_DIR/nginx/nginx.conf" /etc/nginx/sites-available/kurius
