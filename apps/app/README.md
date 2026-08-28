@@ -30,10 +30,12 @@ apps/app/
 
 The mobile app should connect to the Kurius Backend API running on `apps/api`:
 
-- **Base URL (Local/Emulator)**:
+- **Base URL (Production)**: `https://api.kuriusapp.cloud/api/v1`
+- **Swagger / OpenAPI Documentation (Production)**: `https://api.kuriusapp.cloud/api/docs`
+- **Base URL (Local / Emulator)**:
   - Android Emulator: `http://10.0.2.2:5000/api/v1`
   - iOS Simulator / Physical Device on local Wi-Fi: `http://<YOUR_LOCAL_IP>:5000/api/v1`
-- **Swagger / OpenAPI Documentation**: `http://localhost:5000/api-docs`
+- **Swagger / OpenAPI Documentation (Local)**: `http://localhost:5000/api-docs`
 
 ### Key Mobile Endpoints:
 
