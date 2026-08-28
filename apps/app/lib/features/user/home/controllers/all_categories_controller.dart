@@ -15,6 +15,7 @@ class AllCategoriesController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isRefreshing = false.obs;
   final RxString errorMessage = ''.obs;
+  final RxString searchQuery = ''.obs;
   final TextEditingController searchController = TextEditingController();
 
   @override
@@ -70,6 +71,7 @@ class AllCategoriesController extends GetxController {
   }
 
   void filterCategories(String query) {
+    searchQuery.value = query;
     final term = query.trim().toLowerCase();
     if (term.isEmpty) {
       filteredCategories.value = categories;
@@ -80,6 +82,12 @@ class AllCategoriesController extends GetxController {
               cat.slug.toLowerCase().contains(term))
           .toList();
     }
+  }
+
+  void clearSearch() {
+    searchController.clear();
+    searchQuery.value = '';
+    filteredCategories.value = categories;
   }
 
   void openCategory(CategoryModel category) {

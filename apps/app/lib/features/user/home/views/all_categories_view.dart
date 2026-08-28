@@ -64,13 +64,10 @@ class AllCategoriesView extends GetView<AllCategoriesController> {
                     hintStyle: GoogleFonts.outfit(fontSize: 14, color: AppColors.textMuted),
                     prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 22),
                     suffixIcon: Obx(() {
-                      if (ctrl.searchController.text.isNotEmpty) {
+                      if (ctrl.searchQuery.value.isNotEmpty) {
                         return IconButton(
                           icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textMuted),
-                          onPressed: () {
-                            ctrl.searchController.clear();
-                            ctrl.filterCategories('');
-                          },
+                          onPressed: ctrl.clearSearch,
                         );
                       }
                       return const SizedBox.shrink();
