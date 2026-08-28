@@ -215,37 +215,31 @@ jobs:
             echo " [9/9] Configure Nginx + SSL"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+            # Obtain / Expand SSL certificate — covers main domain + api + admin subdomains
+            certbot certonly --nginx \
+              -d kuriusapp.cloud \
+              -d www.kuriusapp.cloud \
+              -d api.kuriusapp.cloud \
+              -d admin.kuriusapp.cloud \
+              --non-interactive \
+              --agree-tos \
+              --email ${{ secrets.EMAIL_USER }} \
+              --expand || certbot --nginx \
+              -d kuriusapp.cloud \
+              -d www.kuriusapp.cloud \
+              -d api.kuriusapp.cloud \
+              -d admin.kuriusapp.cloud \
+              --non-interactive \
+              --agree-tos \
+              --email ${{ secrets.EMAIL_USER }} \
+              --expand || true
+
             mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
             cp "$REPO_DIR/nginx/nginx.conf" /etc/nginx/sites-available/kurius
             ln -sf /etc/nginx/sites-available/kurius /etc/nginx/sites-enabled/kurius
             rm -f /etc/nginx/sites-enabled/default
             nginx -t && systemctl reload nginx
             echo "✓ Nginx configured and reloaded"
-
-            # Obtain SSL certificate — covers main domain + api + admin subdomains
-            if [ ! -d "/etc/letsencrypt/live/kuriusapp.cloud" ]; then
-              echo "Obtaining SSL certificate via Let's Encrypt..."
-              certbot --nginx \
-                -d kuriusapp.cloud \
-                -d www.kuriusapp.cloud \
-                -d api.kuriusapp.cloud \
-                -d admin.kuriusapp.cloud \
-                --non-interactive \
-                --agree-tos \
-                --email ${{ secrets.EMAIL_USER }}
-              echo "✓ SSL certificate obtained"
-            else
-              echo "Expanding SSL cert to include api and admin subdomains..."
-              certbot --nginx \
-                -d kuriusapp.cloud \
-                -d www.kuriusapp.cloud \
-                -d api.kuriusapp.cloud \
-                -d admin.kuriusapp.cloud \
-                --non-interactive \
-                --agree-tos \
-                --email ${{ secrets.EMAIL_USER }} \
-                --expand || echo "✓ SSL cert already up to date"
-            fi
 
             echo ""
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
