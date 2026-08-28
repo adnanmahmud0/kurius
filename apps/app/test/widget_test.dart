@@ -92,6 +92,12 @@ void main() {
     expect(profileController.obscureDeletePassword.value, isTrue);
     profileController.toggleDeletePasswordVisibility();
     expect(profileController.obscureDeletePassword.value, isFalse);
+
+    // Test Edit Profile status messages
+    profileController.editProfileSuccessMessage.value = 'Profile updated successfully';
+    expect(profileController.editProfileSuccessMessage.value, isNotEmpty);
+    profileController.dismissEditProfileMessage();
+    expect(profileController.editProfileSuccessMessage.value, isEmpty);
   });
 
   test('ChangePasswordRequest DTO JSON Serialization Test', () {

@@ -42,10 +42,12 @@ class ProfileController extends GetxController {
   final RxInt videosCount = 0.obs;
   final RxInt pointsCount = 0.obs;
 
-  // Edit Profile Form Controllers
+  // Edit Profile Form Controllers & Status Response Observables
   final TextEditingController nameController = TextEditingController();
   final TextEditingController contactController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
+  final RxString editProfileSuccessMessage = ''.obs;
+  final RxString editProfileErrorMessage = ''.obs;
 
   // Change Password Form Controllers & Observables
   final TextEditingController oldPasswordController = TextEditingController();
@@ -166,17 +168,26 @@ class ProfileController extends GetxController {
   }
 
   // ---------------------------------------------------------------------------
-  // Save Profile Edits
+  // Save Profile Edits (with Toggleable Response Message)
   // ---------------------------------------------------------------------------
 
+  void dismissEditProfileMessage() {
+    editProfileSuccessMessage.value = '';
+    editProfileErrorMessage.value = '';
+  }
+
   Future<void> saveProfileEdits() async {
+    dismissEditProfileMessage();
+
     final name = nameController.text.trim();
     final contact = contactController.text.trim();
     final location = locationController.text.trim();
 
     if (name.isEmpty) {
+      const err = 'Name cannot be empty.';
+      editProfileErrorMessage.value = err;
       ErrorHandler.showErrorSnackbar(
-        'Name cannot be empty.',
+        err,
         customTitle: 'Validation Error',
       );
       return;
@@ -202,14 +213,25 @@ class ProfileController extends GetxController {
           userName.value = res.data!.displayName;
           authController.userName.value = res.data!.displayName;
 
+          final msg = (res.message != null && res.message!.isNotEmpty)
+              ? res.message!
+              : 'Profile updated successfully';
+
+          editProfileSuccessMessage.value = msg;
           ErrorHandler.showSuccessSnackbar(
-            'Profile details updated successfully.',
+            msg,
             title: 'Profile Saved',
           );
-          Get.back();
+
+          await Future.delayed(const Duration(milliseconds: 1400));
+          if (Get.key.currentState?.canPop() == true) {
+            Get.back();
+          }
         }
       }
     } catch (e) {
+      final err = ErrorHandler.getErrorMessage(e);
+      editProfileErrorMessage.value = err;
       ErrorHandler.showErrorSnackbar(
         e,
         onRetry: () => saveProfileEdits(),
@@ -220,7 +242,7 @@ class ProfileController extends GetxController {
   }
 
   // ---------------------------------------------------------------------------
-  // Change Password
+  // Change Password (with Toggleable Response Message)
   // ---------------------------------------------------------------------------
 
   void toggleOldPasswordVisibility() => obscureOldPassword.value = !obscureOldPassword.value;
