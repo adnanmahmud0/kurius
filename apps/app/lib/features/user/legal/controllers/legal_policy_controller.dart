@@ -21,6 +21,12 @@ class LegalPolicyController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
 
+  LegalRepository get _effectiveRepo =>
+      legalRepository ??
+      (Get.isRegistered<LegalRepository>()
+          ? Get.find<LegalRepository>()
+          : const LegalRepository());
+
   @override
   void onInit() {
     super.onInit();
@@ -44,20 +50,13 @@ class LegalPolicyController extends GetxController {
     errorMessage.value = '';
 
     try {
-      final repo = legalRepository ??
-          (Get.isRegistered<LegalRepository>()
-              ? Get.find<LegalRepository>()
-              : null);
-
-      if (repo != null) {
-        final res = await repo.getLegalPolicy(policyType.value);
-        if (res.data != null) {
-          policy.value = res.data;
-        } else {
-          errorMessage.value = 'Failed to load policy content.';
-        }
+      final res = await _effectiveRepo.getLegalPolicy(policyType.value);
+      if (res.data != null) {
+        policy.value = res.data;
+      } else if (res.message != null && res.message!.isNotEmpty) {
+        errorMessage.value = res.message!;
       } else {
-        errorMessage.value = 'Legal repository not available.';
+        errorMessage.value = 'Failed to load policy content.';
       }
     } catch (e) {
       debugPrint('⚠️ [LegalPolicyController.loadPolicy] Error: $e');

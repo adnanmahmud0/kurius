@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../shared/widgets/user_bottom_nav.dart';
+import '../../legal/bindings/legal_policy_binding.dart';
+import '../../legal/views/legal_policy_view.dart';
 import '../controllers/profile_controller.dart';
 
 class ProfileView extends GetView<ProfileController> {
@@ -436,7 +438,13 @@ class ProfileView extends GetView<ProfileController> {
                     icon: Icons.privacy_tip_outlined,
                     title: 'Privacy Policy',
                     subtitle: 'Read our data & privacy practices',
-                    onTap: () => Get.toNamed(AppRoutes.privacyPolicy, arguments: {'type': 'privacy'}),
+                    onTap: () {
+                      Get.to(
+                        () => const LegalPolicyView(),
+                        binding: LegalPolicyBinding(),
+                        arguments: {'type': 'privacy'},
+                      );
+                    },
                   ),
 
                   // Terms of Service Menu Item
@@ -444,7 +452,13 @@ class ProfileView extends GetView<ProfileController> {
                     icon: Icons.description_outlined,
                     title: 'Terms of Service',
                     subtitle: 'Read our platform rules & agreements',
-                    onTap: () => Get.toNamed(AppRoutes.termsOfService, arguments: {'type': 'terms'}),
+                    onTap: () {
+                      Get.to(
+                        () => const LegalPolicyView(),
+                        binding: LegalPolicyBinding(),
+                        arguments: {'type': 'terms'},
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 16),

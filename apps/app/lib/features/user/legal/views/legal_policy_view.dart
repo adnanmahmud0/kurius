@@ -8,6 +8,12 @@ class LegalPolicyView extends GetView<LegalPolicyController> {
   const LegalPolicyView({super.key});
 
   @override
+  LegalPolicyController get controller =>
+      Get.isRegistered<LegalPolicyController>()
+          ? Get.find<LegalPolicyController>()
+          : Get.put(LegalPolicyController());
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
