@@ -78,7 +78,7 @@ class ProfileView extends GetView<ProfileController> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Sign in to sync your saved topics, stats, and profile preferences.',
+                          'Sign in to manage your profile and account settings.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.outfit(
                             fontSize: 14,
@@ -271,28 +271,6 @@ class ProfileView extends GetView<ProfileController> {
 
                   const SizedBox(height: 28),
 
-                  // Stats Row with 0 default numbers
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBackground,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.cardBorder),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildStatItem('Topics', controller.topicsCount.value.toString()),
-                        Container(height: 36, width: 1, color: AppColors.cardBorder),
-                        _buildStatItem('Videos', controller.videosCount.value.toString()),
-                        Container(height: 36, width: 1, color: AppColors.cardBorder),
-                        _buildStatItem('Points', controller.pointsCount.value.toString()),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
                   // Edit Profile Card
                   _buildMenuItem(
                     icon: Icons.person_outline_rounded,
@@ -309,31 +287,7 @@ class ProfileView extends GetView<ProfileController> {
                     onTap: () => Get.toNamed(AppRoutes.changePassword),
                   ),
 
-                  // Saved Videos
-                  _buildMenuItem(
-                    icon: Icons.bookmark_border_rounded,
-                    title: 'Saved Facts & Videos',
-                    subtitle: 'View or remove saved videos',
-                    onTap: () => Get.toNamed(AppRoutes.savedVideos),
-                  ),
-
-                  // Learning History
-                  _buildMenuItem(
-                    icon: Icons.history_rounded,
-                    title: 'Learning History',
-                    subtitle: 'View or clear watched history',
-                    onTap: () => Get.toNamed(AppRoutes.learningHistory),
-                  ),
-
-                  // Preferences & Notifications
-                  _buildMenuItem(
-                    icon: Icons.tune_rounded,
-                    title: 'Preferences & Notifications',
-                    subtitle: 'Manage alerts, autoplay & digests',
-                    onTap: () => Get.toNamed(AppRoutes.preferences),
-                  ),
-
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
                   // Logout Button
                   SizedBox(
@@ -436,30 +390,6 @@ class ProfileView extends GetView<ProfileController> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildStatItem(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.outfit(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: AppColors.primary,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: GoogleFonts.outfit(
-            fontSize: 13,
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 
