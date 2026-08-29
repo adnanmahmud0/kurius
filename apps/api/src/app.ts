@@ -1,3 +1,5 @@
+import path from "path";
+
 import cors from "cors";
 import express, { Request, Response } from "express";
 import session from "express-session";
@@ -54,7 +56,28 @@ initializePassport();
 app.use(passport.initialize());
 app.use(passport.session());
 
-//file retrieve
+//file retrieve & streaming
+const uploadsPath = path.join(process.cwd(), "uploads");
+app.use(
+  "/uploads",
+  (req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  },
+  express.static(uploadsPath, {
+    acceptRanges: true,
+    maxAge: "7d"
+  }),
+  express.static(path.resolve(__dirname, "../uploads"), {
+    acceptRanges: true,
+    maxAge: "7d"
+  })
+);
 app.use(express.static("uploads"));
 
 //api documentation
