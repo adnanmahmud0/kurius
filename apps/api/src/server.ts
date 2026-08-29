@@ -23,8 +23,11 @@ async function main() {
     await prisma.$connect();
     logger.info(colors.green("🚀 Database connected successfully"));
 
-    //Seed Super Admin after database connection is successful
+    //Seed Super Admin and initial motivational quotes
     await seedSuperAdmin();
+    const { MotivationalMessageService } =
+      await import("./app/modules/motivational-message/motivational-message.service");
+    await MotivationalMessageService.seedInitialMessagesIfEmpty();
 
     const port = Number(config.port) || 5000;
     const ipAddress = (config.ip_address as string) || "0.0.0.0";

@@ -61,12 +61,22 @@ export interface ICategory {
   id: string;
   name: string;
   slug: string;
+  thumbnail?: string | null;
   status: "active" | "delete";
   createdAt: string | Date;
   updatedAt: string | Date;
   _count?: {
     videos: number;
   };
+}
+
+export interface IMotivationalMessage {
+  id: string;
+  message: string;
+  author?: string | null;
+  status: "active" | "delete";
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 
 export interface IVideo {

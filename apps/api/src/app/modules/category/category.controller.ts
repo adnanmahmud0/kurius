@@ -1,12 +1,25 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 
+import { StorageAdapter } from "../../../helpers/storageAdapter";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { CategoryService } from "./category.service";
 
 const createCategory = catchAsync(async (req: Request, res: Response) => {
-  const result = await CategoryService.createCategoryToDB(req.body.name);
+  let thumbnail = req.body.thumbnail || null;
+  const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+  const singleFile = (req as any).file || files?.image?.[0] || files?.thumbnail?.[0];
+
+  if (singleFile) {
+    const uploadResult = await StorageAdapter.uploadFile(singleFile, "categories");
+    thumbnail = uploadResult.url;
+  }
+
+  const result = await CategoryService.createCategoryToDB({
+    name: req.body.name,
+    thumbnail
+  });
 
   sendResponse(res, {
     success: true,
@@ -51,7 +64,19 @@ const getCategoryById = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateCategory = catchAsync(async (req: Request, res: Response) => {
-  const result = await CategoryService.updateCategoryInDB(req.params.id, req.body);
+  let thumbnail = req.body.thumbnail;
+  const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+  const singleFile = (req as any).file || files?.image?.[0] || files?.thumbnail?.[0];
+
+  if (singleFile) {
+    const uploadResult = await StorageAdapter.uploadFile(singleFile, "categories");
+    thumbnail = uploadResult.url;
+  }
+
+  const result = await CategoryService.updateCategoryInDB(req.params.id, {
+    ...req.body,
+    ...(thumbnail !== undefined ? { thumbnail } : {})
+  });
 
   sendResponse(res, {
     success: true,
@@ -67,7 +92,7 @@ const deleteCategory = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: "Category deactivated successfully.",
+    message: "Category deleted permanently.",
     data: result
   });
 });

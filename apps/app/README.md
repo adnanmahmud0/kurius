@@ -285,9 +285,57 @@ Authorization: Bearer <accessToken>
 
 ---
 
-## 🏷️ 7. Categories & Legal Policies
+## 🏷️ 7. Categories & Motivational Quotes
 
-- **Get Categories**: `GET /categories` (Public)
+### 7.1 Get Categories (with Thumbnails)
+
+- **Endpoint**: `GET /categories`
+- **Auth**: Public
+- **Response**:
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Categories retrieved successfully.",
+  "data": [
+    {
+      "id": "cat-123",
+      "name": "Motivation",
+      "slug": "motivation",
+      "thumbnail": "/uploads/categories/motivation-cover.jpg",
+      "status": "active",
+      "_count": { "videos": 12 }
+    }
+  ]
+}
+```
+
+### 7.2 Get Random Motivational Message
+
+- **Endpoint**: `GET /motivational-messages/random`
+- **Auth**: Optional / Public
+- **Response**: Returns a single random inspiring quote for displaying in the app feed or home banner.
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Random motivational message retrieved successfully.",
+  "data": {
+    "id": "5893ecb2-3211-4099-881a-cfa68b753a8d",
+    "message": "The only way to do great work is to love what you do.",
+    "author": "Steve Jobs",
+    "status": "active",
+    "createdAt": "2026-08-29T20:30:00.000Z"
+  }
+}
+```
+
+---
+
+## 📜 8. Legal Policies
+
 - **Get Privacy Policy**: `GET /legal/privacy` (Public)
 - **Get Terms of Service**: `GET /legal/terms` (Public)
 

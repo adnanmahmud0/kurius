@@ -12,6 +12,7 @@ import {
   HardDrive,
   Home,
   LogOut,
+  Quote,
   Shield,
   Upload,
   Users,
@@ -45,6 +46,11 @@ const mainNavItems = [
     title: "Upload Video",
     href: "/admin/videos/upload",
     icon: Upload
+  },
+  {
+    title: "Motivational Quotes",
+    href: "/admin/messages",
+    icon: Quote
   },
   {
     title: "Users & Analytics",

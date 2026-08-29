@@ -47,8 +47,29 @@ export function useCreateCategory() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: { name: string }) => {
-      const response = await post<ApiResponse<ICategory>>("/categories/admin", payload);
+    mutationFn: async (payload: {
+      name: string;
+      thumbnail?: string | null;
+      imageFile?: File | null;
+    }) => {
+      let dataToSend: any;
+      let headers: any = undefined;
+
+      if (payload.imageFile) {
+        const formData = new FormData();
+        formData.append("name", payload.name);
+        formData.append("image", payload.imageFile);
+        dataToSend = formData;
+        headers = { "Content-Type": "multipart/form-data" };
+      } else {
+        dataToSend = { name: payload.name, thumbnail: payload.thumbnail || null };
+      }
+
+      const response = await post<ApiResponse<ICategory>>(
+        "/categories/admin",
+        dataToSend,
+        headers ? { headers } : undefined
+      );
       return response.data;
     },
     onSuccess: (data) => {
@@ -72,12 +93,39 @@ export function useUpdateCategory() {
       payload
     }: {
       id: string;
-      payload: { name?: string; status?: "active" | "delete" };
+      payload: {
+        name?: string;
+        thumbnail?: string | null;
+        imageFile?: File | null;
+        status?: "active" | "delete";
+      };
     }) => {
-      const response = await put<ApiResponse<ICategory>>(`/categories/admin/${id}`, payload);
+      let dataToSend: any;
+      let headers: any = undefined;
+
+      if (payload.imageFile) {
+        const formData = new FormData();
+        if (payload.name) formData.append("name", payload.name);
+        if (payload.status) formData.append("status", payload.status);
+        formData.append("image", payload.imageFile);
+        dataToSend = formData;
+        headers = { "Content-Type": "multipart/form-data" };
+      } else {
+        dataToSend = {
+          name: payload.name,
+          thumbnail: payload.thumbnail,
+          status: payload.status
+        };
+      }
+
+      const response = await put<ApiResponse<ICategory>>(
+        `/categories/admin/${id}`,
+        dataToSend,
+        headers ? { headers } : undefined
+      );
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "categories"] });
       toast.success(`Category updated successfully!`);
