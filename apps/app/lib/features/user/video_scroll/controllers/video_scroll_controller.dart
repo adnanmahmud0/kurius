@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../../app/routes/app_routes.dart';
+import '../../../../core/storage/storage_service.dart';
 import '../../../../data/repositories/video_repository.dart';
 import '../models/video_model.dart';
 
@@ -19,7 +21,9 @@ class CommentItem {
 }
 
 class VideoScrollController extends GetxController {
-  final VideoRepository _videoRepository = VideoRepository();
+  final VideoRepository? videoRepository;
+
+  VideoScrollController({this.videoRepository});
 
   late PageController pageController;
 
@@ -34,31 +38,12 @@ class VideoScrollController extends GetxController {
   final RxDouble totalDuration = 60.0.obs; // In seconds
   final RxBool showControls = false.obs;
 
-  // Interaction States per video (liked states & like counts)
+  // Interaction States per video (liked states & like counts default to 0)
   final RxMap<String, bool> likedMap = <String, bool>{}.obs;
   final RxMap<String, int> likesCountMap = <String, int>{}.obs;
 
-  // Comments
-  final RxList<CommentItem> comments = <CommentItem>[
-    CommentItem(
-      userName: 'Sophia Adams',
-      comment: 'This myth is so fascinating! Hermes is my favorite Greek god.',
-      timeAgo: '2h ago',
-      avatarLetter: 'S',
-    ),
-    CommentItem(
-      userName: 'Marcus Aurelius',
-      comment: 'The golden winged sandals and the caduceus are iconic!',
-      timeAgo: '4h ago',
-      avatarLetter: 'M',
-    ),
-    CommentItem(
-      userName: 'Elena Rostova',
-      comment: 'Loved the narration and concise storytelling.',
-      timeAgo: '1d ago',
-      avatarLetter: 'E',
-    ),
-  ].obs;
+  // Comments (empty by default, no demo values)
+  final RxList<CommentItem> comments = <CommentItem>[].obs;
 
   final TextEditingController commentInputController = TextEditingController();
 
@@ -79,17 +64,37 @@ class VideoScrollController extends GetxController {
       currentIndex.value = initialIdx;
       pageController = PageController(initialPage: initialIdx);
     } else {
-      videos.value = _videoRepository.getAllVideos();
       pageController = PageController(initialPage: 0);
+      _fetchFallbackVideos();
     }
 
-    // Initialize like maps
+    // Initialize like maps with default 0 for numbers
+    _initVideoStates();
+
+    _startPlaybackSimulation();
+  }
+
+  void _initVideoStates() {
     for (var video in videos) {
       likedMap[video.id] = false;
       likesCountMap[video.id] = video.initialLikes;
     }
+  }
 
-    _startPlaybackSimulation();
+  Future<void> _fetchFallbackVideos() async {
+    final repo = videoRepository ??
+        (Get.isRegistered<VideoRepository>()
+            ? Get.find<VideoRepository>()
+            : null);
+    if (repo != null) {
+      final res = await repo.fetchVideos(limit: 20);
+      if (res.data != null) {
+        videos.value = res.data!
+            .map((item) => VideoModel.fromVideoItem(item))
+            .toList();
+        _initVideoStates();
+      }
+    }
   }
 
   void _startPlaybackSimulation() {
@@ -120,16 +125,6 @@ class VideoScrollController extends GetxController {
 
   void toggleMute() {
     isMuted.value = !isMuted.value;
-    Get.snackbar(
-      isMuted.value ? 'Audio Muted' : 'Audio Unmuted',
-      '',
-      snackPosition: SnackPosition.TOP,
-      duration: const Duration(milliseconds: 1200),
-      backgroundColor: Colors.black.withValues(alpha: 0.7),
-      colorText: Colors.white,
-      margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
-      borderRadius: 20,
-    );
   }
 
   void skipForward10() {
@@ -148,23 +143,67 @@ class VideoScrollController extends GetxController {
     currentPosition.value = seconds.clamp(0.0, totalDuration.value);
   }
 
+  bool _checkAuthRequirement(String action) {
+    final storage = Get.isRegistered<StorageService>() ? Get.find<StorageService>() : StorageService.to;
+    if (!storage.isLoggedIn()) {
+      if (Get.context != null && Get.overlayContext != null) {
+        Get.snackbar(
+          'Sign In Required',
+          'Please sign up or sign in to $action videos.',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.black87,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 14,
+          duration: const Duration(seconds: 3),
+        );
+      }
+      if (Get.key.currentState != null) {
+        Get.toNamed(AppRoutes.auth);
+      }
+      return false;
+    }
+    return true;
+  }
+
   void toggleLike(String videoId) {
+    if (!_checkAuthRequirement('like')) return;
+
     final currentLiked = likedMap[videoId] ?? false;
     likedMap[videoId] = !currentLiked;
     final currentLikes = likesCountMap[videoId] ?? 0;
     likesCountMap[videoId] =
         !currentLiked ? currentLikes + 1 : (currentLikes > 0 ? currentLikes - 1 : 0);
+
+    // Trigger background API call if registered
+    final repo = videoRepository ??
+        (Get.isRegistered<VideoRepository>()
+            ? Get.find<VideoRepository>()
+            : null);
+    if (repo != null) {
+      if (!currentLiked) {
+        repo.likeVideo(videoId);
+      } else {
+        repo.unlikeVideo(videoId);
+      }
+    }
   }
 
   void addComment(String text) {
     if (text.trim().isEmpty) return;
+    if (!_checkAuthRequirement('comment on')) return;
+
+    final storage = Get.isRegistered<StorageService>() ? Get.find<StorageService>() : StorageService.to;
+    final user = storage.getUserData();
+    final name = user?['name'] as String? ?? 'You';
+
     comments.insert(
       0,
       CommentItem(
-        userName: 'You',
+        userName: name,
         comment: text.trim(),
         timeAgo: 'Just now',
-        avatarLetter: 'Y',
+        avatarLetter: name.isNotEmpty ? name[0].toUpperCase() : 'Y',
       ),
     );
     commentInputController.clear();
