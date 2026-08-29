@@ -18,6 +18,8 @@ import {
 
 import type { IVideo } from "@repo/types";
 
+import { getMediaUrl } from "@/lib/utils";
+
 import { useCategories } from "@/hooks/use-categories";
 import { useAdminVideos, useDeleteVideo } from "@/hooks/use-videos";
 
@@ -146,7 +148,7 @@ export function VideoTable() {
                         {vid.thumbnailUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={vid.thumbnailUrl}
+                            src={getMediaUrl(vid.thumbnailUrl)}
                             alt={vid.title}
                             className="h-full w-full object-cover"
                           />
