@@ -1,0 +1,199 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../../../../data/repositories/video_repository.dart';
+import '../models/video_model.dart';
+
+class CommentItem {
+  final String userName;
+  final String comment;
+  final String timeAgo;
+  final String avatarLetter;
+
+  CommentItem({
+    required this.userName,
+    required this.comment,
+    required this.timeAgo,
+    required this.avatarLetter,
+  });
+}
+
+class VideoScrollController extends GetxController {
+  final VideoRepository _videoRepository = VideoRepository();
+
+  late PageController pageController;
+
+  // Active Videos List
+  final RxList<VideoModel> videos = <VideoModel>[].obs;
+  final RxInt currentIndex = 0.obs;
+
+  // Playback States
+  final RxBool isPlaying = true.obs;
+  final RxBool isMuted = false.obs;
+  final RxDouble currentPosition = 0.0.obs; // In seconds
+  final RxDouble totalDuration = 60.0.obs; // In seconds
+  final RxBool showControls = false.obs;
+
+  // Interaction States per video (liked states & like counts)
+  final RxMap<String, bool> likedMap = <String, bool>{}.obs;
+  final RxMap<String, int> likesCountMap = <String, int>{}.obs;
+
+  // Comments
+  final RxList<CommentItem> comments = <CommentItem>[
+    CommentItem(
+      userName: 'Sophia Adams',
+      comment: 'This myth is so fascinating! Hermes is my favorite Greek god.',
+      timeAgo: '2h ago',
+      avatarLetter: 'S',
+    ),
+    CommentItem(
+      userName: 'Marcus Aurelius',
+      comment: 'The golden winged sandals and the caduceus are iconic!',
+      timeAgo: '4h ago',
+      avatarLetter: 'M',
+    ),
+    CommentItem(
+      userName: 'Elena Rostova',
+      comment: 'Loved the narration and concise storytelling.',
+      timeAgo: '1d ago',
+      avatarLetter: 'E',
+    ),
+  ].obs;
+
+  final TextEditingController commentInputController = TextEditingController();
+
+  Timer? _playbackTimer;
+  Timer? _controlsHideTimer;
+
+  @override
+  void onInit() {
+    super.onInit();
+
+    // Check passed arguments
+    if (Get.arguments != null && Get.arguments is Map) {
+      final args = Get.arguments as Map;
+      if (args['videos'] != null) {
+        videos.value = List<VideoModel>.from(args['videos']);
+      }
+      final initialIdx = args['initialIndex'] as int? ?? 0;
+      currentIndex.value = initialIdx;
+      pageController = PageController(initialPage: initialIdx);
+    } else {
+      videos.value = _videoRepository.getAllVideos();
+      pageController = PageController(initialPage: 0);
+    }
+
+    // Initialize like maps
+    for (var video in videos) {
+      likedMap[video.id] = false;
+      likesCountMap[video.id] = video.initialLikes;
+    }
+
+    _startPlaybackSimulation();
+  }
+
+  void _startPlaybackSimulation() {
+    _playbackTimer?.cancel();
+    _playbackTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (isPlaying.value) {
+        if (currentPosition.value < totalDuration.value) {
+          currentPosition.value += 0.5;
+        } else {
+          // Loop video playback
+          currentPosition.value = 0.0;
+        }
+      }
+    });
+  }
+
+  void onPageChanged(int index) {
+    currentIndex.value = index;
+    currentPosition.value = 0.0;
+    isPlaying.value = true;
+    _resetControlsHideTimer();
+  }
+
+  void togglePlayPause() {
+    isPlaying.value = !isPlaying.value;
+    triggerShowControls();
+  }
+
+  void toggleMute() {
+    isMuted.value = !isMuted.value;
+    Get.snackbar(
+      isMuted.value ? 'Audio Muted' : 'Audio Unmuted',
+      '',
+      snackPosition: SnackPosition.TOP,
+      duration: const Duration(milliseconds: 1200),
+      backgroundColor: Colors.black.withValues(alpha: 0.7),
+      colorText: Colors.white,
+      margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
+      borderRadius: 20,
+    );
+  }
+
+  void skipForward10() {
+    currentPosition.value =
+        (currentPosition.value + 10.0).clamp(0.0, totalDuration.value);
+    triggerShowControls();
+  }
+
+  void skipBackward10() {
+    currentPosition.value =
+        (currentPosition.value - 10.0).clamp(0.0, totalDuration.value);
+    triggerShowControls();
+  }
+
+  void seekTo(double seconds) {
+    currentPosition.value = seconds.clamp(0.0, totalDuration.value);
+  }
+
+  void toggleLike(String videoId) {
+    final currentLiked = likedMap[videoId] ?? false;
+    likedMap[videoId] = !currentLiked;
+    final currentLikes = likesCountMap[videoId] ?? 0;
+    likesCountMap[videoId] =
+        !currentLiked ? currentLikes + 1 : (currentLikes > 0 ? currentLikes - 1 : 0);
+  }
+
+  void addComment(String text) {
+    if (text.trim().isEmpty) return;
+    comments.insert(
+      0,
+      CommentItem(
+        userName: 'You',
+        comment: text.trim(),
+        timeAgo: 'Just now',
+        avatarLetter: 'Y',
+      ),
+    );
+    commentInputController.clear();
+  }
+
+  void triggerShowControls() {
+    showControls.value = true;
+    _resetControlsHideTimer();
+  }
+
+  void _resetControlsHideTimer() {
+    _controlsHideTimer?.cancel();
+    _controlsHideTimer = Timer(const Duration(seconds: 3), () {
+      showControls.value = false;
+    });
+  }
+
+  String formatDuration(double seconds) {
+    final int minutes = seconds ~/ 60;
+    final int remainingSeconds = (seconds % 60).toInt();
+    return '${minutes.toString().padLeft(1, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void onClose() {
+    _playbackTimer?.cancel();
+    _controlsHideTimer?.cancel();
+    pageController.dispose();
+    commentInputController.dispose();
+    super.onClose();
+  }
+}
