@@ -8,10 +8,12 @@ import 'package:kurius/data/models/comment/comment_model.dart';
 import 'package:kurius/data/models/motivational/motivational_message_model.dart';
 import 'package:kurius/data/models/user/user_model.dart';
 import 'package:kurius/data/models/video/video_item_model.dart';
+import 'package:kurius/data/models/legal/legal_policy_model.dart';
 import 'package:kurius/features/user/auth/controllers/auth_controller.dart';
 import 'package:kurius/features/user/home/controllers/all_categories_controller.dart';
 import 'package:kurius/features/user/home/controllers/category_videos_controller.dart';
 import 'package:kurius/features/user/home/controllers/home_controller.dart';
+import 'package:kurius/features/user/legal/controllers/legal_policy_controller.dart';
 import 'package:kurius/features/user/profile/controllers/profile_controller.dart';
 import 'package:kurius/features/user/video_scroll/controllers/video_scroll_controller.dart';
 import 'package:kurius/features/user/video_scroll/models/video_model.dart';
@@ -358,5 +360,26 @@ void main() {
     expect(homeController.categories, isEmpty);
     expect(homeController.latestVideos, isEmpty);
     expect(homeController.factOfTheDay.value, isNotEmpty);
+  });
+
+  test('LegalPolicyModel API Deserialization & Controller Test', () {
+    final policyJson = {
+      "id": "220494d1-9225-438f-814b-97e683ddc7fb",
+      "type": "terms",
+      "title": "Terms of Service",
+      "content": "## 1. Acceptance of Terms\nBy accessing or using the Kurius Platform...",
+      "createdAt": "2026-08-27T13:26:18.686Z",
+      "updatedAt": "2026-08-27T13:26:18.686Z"
+    };
+
+    final policy = LegalPolicyModel.fromJson(policyJson);
+    expect(policy.id, "220494d1-9225-438f-814b-97e683ddc7fb");
+    expect(policy.type, "terms");
+    expect(policy.title, "Terms of Service");
+    expect(policy.content, contains("Acceptance of Terms"));
+
+    final controller = Get.put(LegalPolicyController(initialPolicyType: 'privacy'));
+    expect(controller.policyType.value, 'privacy');
+    expect(controller.screenTitle, 'Privacy Policy');
   });
 }

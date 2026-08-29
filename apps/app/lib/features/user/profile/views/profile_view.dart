@@ -431,7 +431,23 @@ class ProfileView extends GetView<ProfileController> {
                     onTap: () => Get.toNamed(AppRoutes.changePassword),
                   ),
 
-                  const SizedBox(height: 20),
+                  // Privacy Policy Menu Item
+                  _buildMenuItem(
+                    icon: Icons.privacy_tip_outlined,
+                    title: 'Privacy Policy',
+                    subtitle: 'Read our data & privacy practices',
+                    onTap: () => Get.toNamed(AppRoutes.privacyPolicy, arguments: {'type': 'privacy'}),
+                  ),
+
+                  // Terms of Service Menu Item
+                  _buildMenuItem(
+                    icon: Icons.description_outlined,
+                    title: 'Terms of Service',
+                    subtitle: 'Read our platform rules & agreements',
+                    onTap: () => Get.toNamed(AppRoutes.termsOfService, arguments: {'type': 'terms'}),
+                  ),
+
+                  const SizedBox(height: 16),
 
                   // Logout Button
                   SizedBox(

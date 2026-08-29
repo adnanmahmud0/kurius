@@ -52,4 +52,5 @@ class ApiEndpoints {
   // Legal Endpoints
   static const String privacyPolicy = '$apiPrefix/legal/privacy';
   static const String termsOfService = '$apiPrefix/legal/terms';
+  static String legalPolicy(String type) => '$apiPrefix/legal/$type';
 }
