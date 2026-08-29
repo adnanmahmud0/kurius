@@ -7,6 +7,7 @@ import { Server } from "socket.io";
 import app from "./app";
 import config from "./config";
 import { seedSuperAdmin } from "./DB/seedAdmin";
+import { syncDatabaseSchema } from "./DB/syncDatabase";
 import { socketHelper } from "./helpers/socketHelper";
 import { errorLogger, logger } from "./shared/logger";
 import prisma from "./shared/prisma";
@@ -22,6 +23,9 @@ async function main() {
   try {
     await prisma.$connect();
     logger.info(colors.green("🚀 Database connected successfully"));
+
+    // Automatically synchronize new schema columns and tables
+    await syncDatabaseSchema();
 
     //Seed Super Admin and initial motivational quotes
     await seedSuperAdmin();
