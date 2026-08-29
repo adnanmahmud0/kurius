@@ -29,17 +29,6 @@ class ProfileView extends GetView<ProfileController> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => Get.back(),
         ),
-        actions: [
-          Obx(() {
-            if (!auth.isLoggedIn.value) return const SizedBox.shrink();
-            return IconButton(
-              icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
-              tooltip: 'Edit Profile',
-              onPressed: () => Get.toNamed(AppRoutes.editProfile),
-            );
-          }),
-          const SizedBox(width: 8),
-        ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -115,11 +104,9 @@ class ProfileView extends GetView<ProfileController> {
               final name = controller.userName.value.isNotEmpty
                   ? controller.userName.value
                   : (auth.userName.value.isNotEmpty ? auth.userName.value : 'Kurius User');
-              final email = controller.userEmail.value.isNotEmpty
-                  ? controller.userEmail.value
-                  : (auth.userEmail.value.isNotEmpty ? auth.userEmail.value : '');
 
               return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // User Avatar with Verified Badge and Upload Button
                   Center(
@@ -209,9 +196,9 @@ class ProfileView extends GetView<ProfileController> {
                               ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
 
-                        // Name with Verified Badge beside name
+                        // Name with Verified Badge
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -257,29 +244,186 @@ class ProfileView extends GetView<ProfileController> {
                             ],
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          email,
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
 
-                  // Edit Profile Card
-                  _buildMenuItem(
-                    icon: Icons.person_outline_rounded,
-                    title: 'Edit Profile Information',
-                    subtitle: 'Update name, contact & details',
-                    onTap: () => Get.toNamed(AppRoutes.editProfile),
+                  // Dismissible / Toggleable API Status Response Message Banner
+                  Obx(() {
+                    if (controller.editProfileSuccessMessage.value.isNotEmpty) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFA5D6A7)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                controller.editProfileSuccessMessage.value,
+                                style: GoogleFonts.outfit(
+                                  color: const Color(0xFF1B5E20),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: controller.dismissEditProfileMessage,
+                              child: const Icon(Icons.close_rounded, color: Color(0xFF2E7D32), size: 18),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (controller.editProfileErrorMessage.value.isNotEmpty) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFEBEE),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFFFCDD2)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded, color: Color(0xFFC62828), size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                controller.editProfileErrorMessage.value,
+                                style: GoogleFonts.outfit(
+                                  color: const Color(0xFFB71C1C),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: controller.dismissEditProfileMessage,
+                              child: const Icon(Icons.close_rounded, color: Color(0xFFC62828), size: 18),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return const SizedBox.shrink();
+                  }),
+
+                  // Full Name
+                  _buildFieldLabel('Full Name'),
+                  const SizedBox(height: 6),
+                  _buildTextField(
+                    controller: controller.nameController,
+                    hint: 'Enter your full name',
+                    prefixIcon: Icons.person_outline_rounded,
                   ),
 
-                  // Change Password
+                  const SizedBox(height: 16),
+
+                  // Email Address (Account Linked)
+                  _buildFieldLabel('Email Address (Account Linked)'),
+                  const SizedBox(height: 6),
+                  Obx(() => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBackground.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.cardBorder),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.email_outlined, color: AppColors.textMuted, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                controller.userEmail.value.isNotEmpty
+                                    ? controller.userEmail.value
+                                    : (auth.userEmail.value.isNotEmpty ? auth.userEmail.value : 'No email address'),
+                                style: GoogleFonts.outfit(
+                                  fontSize: 15,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            if (controller.isVerified.value)
+                              const Icon(Icons.verified_rounded, color: Color(0xFF1D9BF0), size: 18),
+                          ],
+                        ),
+                      )),
+
+                  const SizedBox(height: 16),
+
+                  // Contact Number
+                  _buildFieldLabel('Contact Number'),
+                  const SizedBox(height: 6),
+                  _buildTextField(
+                    controller: controller.contactController,
+                    hint: 'e.g. +1 555-0199',
+                    prefixIcon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Location
+                  _buildFieldLabel('Location'),
+                  const SizedBox(height: 6),
+                  _buildTextField(
+                    controller: controller.locationController,
+                    hint: 'e.g. New York, USA',
+                    prefixIcon: Icons.location_on_outlined,
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Save Profile Changes Button
+                  Obx(() => SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: controller.isUpdating.value
+                              ? null
+                              : controller.saveProfileEdits,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 2,
+                          ),
+                          child: controller.isUpdating.value
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  'Save Changes',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      )),
+
+                  const SizedBox(height: 20),
+
+                  // Change Password Menu Item
                   _buildMenuItem(
                     icon: Icons.lock_outline_rounded,
                     title: 'Change Password',
@@ -287,12 +431,12 @@ class ProfileView extends GetView<ProfileController> {
                     onTap: () => Get.toNamed(AppRoutes.changePassword),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Logout Button
                   SizedBox(
                     width: double.infinity,
-                    height: 52,
+                    height: 50,
                     child: OutlinedButton.icon(
                       onPressed: controller.logout,
                       icon: const Icon(Icons.logout_rounded, color: AppColors.error),
@@ -390,6 +534,44 @@ class ProfileView extends GetView<ProfileController> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildFieldLabel(String label) {
+    return Text(
+      label,
+      style: GoogleFonts.outfit(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary,
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData prefixIcon,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        style: GoogleFonts.outfit(fontSize: 15, color: AppColors.textPrimary),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: GoogleFonts.outfit(fontSize: 14, color: AppColors.textMuted),
+          prefixIcon: Icon(prefixIcon, color: AppColors.textSecondary, size: 20),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
     );
   }
 

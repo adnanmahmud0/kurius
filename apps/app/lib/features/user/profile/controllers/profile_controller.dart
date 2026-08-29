@@ -222,11 +222,6 @@ class ProfileController extends GetxController {
             msg,
             title: 'Profile Saved',
           );
-
-          await Future.delayed(const Duration(milliseconds: 1400));
-          if (Get.key.currentState?.canPop() == true) {
-            Get.back();
-          }
         }
       }
     } catch (e) {
