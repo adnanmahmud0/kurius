@@ -12,12 +12,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - kurius_prod_pgdata:/var/lib/postgresql/data
-    # No port mapping — only reachable from within Docker network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d kurius_db"]
       interval: 10s
       timeout: 5s
       retries: 10
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - kurius_net
 
@@ -25,6 +29,7 @@ services:
   # Express API — accessible at localhost:5000
   # ─────────────────────────────────────────
   api:
+    image: ghcr.io/${GH_REPOSITORY_OWNER:-adnanmahmud0}/kurius-api:latest
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -42,6 +47,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - kurius_net
 
@@ -49,11 +59,11 @@ services:
   # Next.js Web — accessible at localhost:3000
   # ─────────────────────────────────────────
   web:
+    image: ghcr.io/${GH_REPOSITORY_OWNER:-adnanmahmud0}/kurius-web:latest
     build:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        # NEXT_PUBLIC_ vars are baked into JS bundle at build time
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     container_name: kurius_prod_web
@@ -64,6 +74,11 @@ services:
       - "127.0.0.1:3000:3000"
     depends_on:
       - api
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - kurius_net
 
