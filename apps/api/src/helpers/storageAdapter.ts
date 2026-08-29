@@ -111,10 +111,17 @@ export const deleteFile = async (publicId: string, storageType = "local"): Promi
     await CloudinaryHelper.deleteFromCloudinary(publicId);
   } else {
     try {
-      const localPath = path.join(process.cwd(), "uploads", publicId);
+      const cleanPath = publicId.replace(/^\/?uploads\/?/, "");
+      const localPath = path.join(process.cwd(), "uploads", cleanPath);
       if (fs.existsSync(localPath)) {
         fs.unlinkSync(localPath);
         logger.info(`Deleted local file: ${localPath}`);
+      } else {
+        const altPath = path.resolve(__dirname, "../uploads", cleanPath);
+        if (fs.existsSync(altPath)) {
+          fs.unlinkSync(altPath);
+          logger.info(`Deleted local file: ${altPath}`);
+        }
       }
     } catch (error) {
       errorLogger.error("Local file delete error", error);

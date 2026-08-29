@@ -381,19 +381,34 @@ const updateVideoInDB = async (
   return updated;
 };
 
-// 6. Delete / Deactivate Video (Admin)
+// 6. Delete Video (Database + Physical Storage)
 const deleteVideoInDB = async (id: string) => {
   const existing = await prisma.video.findUnique({ where: { id } });
   if (!existing) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Video not found!");
   }
 
-  const deactivated = await prisma.video.update({
-    where: { id },
-    data: { status: "delete" }
-  });
+  // 1. Delete physical video file from storage
+  if (existing.publicId) {
+    await StorageAdapter.deleteFile(existing.publicId, existing.storageType);
+  } else if (existing.videoUrl) {
+    await StorageAdapter.deleteFile(existing.videoUrl, existing.storageType);
+  }
 
-  return deactivated;
+  // 2. Delete physical thumbnail file from storage
+  if (existing.thumbnailUrl) {
+    await StorageAdapter.deleteFile(existing.thumbnailUrl, existing.storageType);
+  }
+
+  // 3. Remove all views, likes, comments, and the video record from database
+  await prisma.$transaction([
+    prisma.videoView.deleteMany({ where: { videoId: id } }),
+    prisma.videoLike.deleteMany({ where: { videoId: id } }),
+    prisma.comment.deleteMany({ where: { videoId: id } }),
+    prisma.video.delete({ where: { id } })
+  ]);
+
+  return { id, message: "Video and associated files deleted from database and storage." };
 };
 
 export const VideoService = {
