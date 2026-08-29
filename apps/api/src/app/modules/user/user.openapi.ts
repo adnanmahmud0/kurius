@@ -123,6 +123,61 @@ registry.registerPath({
   }
 });
 
+// 2.5 POST /user/profile/image (Dedicated avatar image upload)
+registry.registerPath({
+  method: "post",
+  path: "/user/profile/image",
+  summary: "Update Profile Image / Avatar (Dedicated)",
+  description:
+    "Dedicated endpoint to upload or update user avatar/profile picture. Accepts multipart file upload (under key 'image', 'avatar', or 'file') or JSON with image URL.",
+  tags: ["User Profile"],
+  security: [{ [bearerAuth.name]: [] }],
+  request: {
+    body: {
+      content: {
+        "multipart/form-data": {
+          schema: z.object({
+            image: z
+              .string()
+              .openapi({ format: "binary", description: "Avatar image file (.jpg, .png, .webp)" })
+          })
+        },
+        "application/json": {
+          schema: z.object({
+            image: z.string().openapi({ example: "https://example.com/avatar.jpg" })
+          })
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      description: "Profile image updated successfully",
+      content: {
+        "application/json": {
+          schema: createSuccessResponseSchema(UserResponseDataSchema)
+        }
+      }
+    },
+    400: {
+      description: "No image file or URL provided",
+      content: {
+        "application/json": {
+          schema: createErrorResponseSchema()
+        }
+      }
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: createErrorResponseSchema()
+        }
+      }
+    }
+  }
+});
+
 // 3. DELETE /user/profile
 registry.registerPath({
   method: "delete",

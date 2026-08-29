@@ -336,12 +336,44 @@ const toggleUserStatusByAdminFromDB = async (id: string, status?: "active" | "de
   };
 };
 
+const updateProfileImageToDB = async (user: JwtPayload, imageUrl: string) => {
+  const { id } = user;
+  const isExistUser = await prisma.user.findUnique({ where: { id } });
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
+  }
+
+  // Delete previous custom uploaded avatar/image if not default placeholder
+  const { StorageAdapter } = await import("../../../helpers/storageAdapter");
+  if (isExistUser.image && !isExistUser.image.includes("ibb.co")) {
+    await StorageAdapter.deleteFile(isExistUser.image);
+  }
+  if (
+    isExistUser.avatar &&
+    !isExistUser.avatar.includes("ibb.co") &&
+    isExistUser.avatar !== isExistUser.image
+  ) {
+    await StorageAdapter.deleteFile(isExistUser.avatar);
+  }
+
+  await prisma.user.update({
+    where: { id },
+    data: {
+      image: imageUrl,
+      avatar: imageUrl
+    }
+  });
+
+  return getUserProfileFromDB(user);
+};
+
 export const UserService = {
   getAllUsersToDB,
   getUserByIdFromDB,
   createUserToDB,
   getUserProfileFromDB,
   updateProfileToDB,
+  updateProfileImageToDB,
   deleteAccountFromDB,
   deleteUserByAdminFromDB,
   toggleUserStatusByAdminFromDB

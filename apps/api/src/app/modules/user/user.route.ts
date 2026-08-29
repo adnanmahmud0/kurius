@@ -37,6 +37,33 @@ router
     UserController.deleteAccount
   );
 
+// Dedicated profile image upload endpoints
+router
+  .route("/profile/image")
+  .post(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+    fileUploadHandler(),
+    UserController.updateProfileImage
+  )
+  .patch(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+    fileUploadHandler(),
+    UserController.updateProfileImage
+  );
+
+router
+  .route("/avatar")
+  .post(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+    fileUploadHandler(),
+    UserController.updateProfileImage
+  )
+  .patch(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
+    fileUploadHandler(),
+    UserController.updateProfileImage
+  );
+
 router
   .route("/")
   .get(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.getAllUsers)

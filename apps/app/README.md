@@ -383,7 +383,49 @@ Future<Map<String, dynamic>> updateUserProfile({
 
 ---
 
-### 6.3 Delete / Close User Account
+### 6.3 Upload / Update Profile Image Only (Dedicated Endpoint)
+
+Use this dedicated endpoint when you want to let users pick and upload an avatar immediately without touching any other profile fields.
+
+- **Endpoint**: `POST /user/profile/image` _(also available at `POST /user/avatar` and `PATCH /user/profile/image`)_
+- **Auth**: Required (`Bearer <token>`)
+- **Content-Type**: `multipart/form-data`
+- **Fields**:
+  - `image` _(File, required)_: Avatar image file (`.jpg`, `.png`, `.webp`)
+
+#### 📱 Flutter / Dart Example (with Dio):
+
+```dart
+import 'package:dio/dio.dart';
+
+Future<String> uploadProfileAvatar({
+  required String imagePath, // Path from ImagePicker
+  required String authToken,
+}) async {
+  final dio = Dio(BaseOptions(baseUrl: 'https://api.kuriusapp.cloud/api/v1'));
+
+  final formData = FormData.fromMap({
+    'image': await MultipartFile.fromFile(
+      imagePath,
+      filename: 'avatar.jpg',
+    ),
+  });
+
+  final response = await dio.post(
+    '/user/profile/image',
+    data: formData,
+    options: Options(headers: {'Authorization': 'Bearer $authToken'}),
+  );
+
+  // Returns updated profile data with the new avatar image URL
+  final updatedUser = response.data['data'];
+  return updatedUser['image']; // e.g. "https://api.kuriusapp.cloud/uploads/users/..."
+}
+```
+
+---
+
+### 6.4 Delete / Close User Account
 
 - **Endpoint**: `DELETE /user/profile`
 - **Auth**: Required (`Bearer <token>`)

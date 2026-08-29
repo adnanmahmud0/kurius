@@ -5,6 +5,7 @@
 import { NextFunction, Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 
+import ApiError from "../../../errors/ApiError";
 import catchAsync from "../../../shared/catchAsync";
 import { getSingleFilePath } from "../../../shared/getFilePath";
 import sendResponse from "../../../shared/sendResponse";
@@ -144,12 +145,56 @@ const toggleUserStatus = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// Dedicated update profile image / avatar endpoint
+const updateProfileImage = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as any;
+
+  let imageFile: Express.Multer.File | undefined;
+  if (req.files) {
+    const files = req.files as Record<string, Express.Multer.File[]>;
+    if (files.image && files.image[0]) {
+      imageFile = files.image[0];
+    } else if (files.avatar && files.avatar[0]) {
+      imageFile = files.avatar[0];
+    } else if (files.file && files.file[0]) {
+      imageFile = files.file[0];
+    }
+  } else if (req.file) {
+    imageFile = req.file;
+  }
+
+  let imageUrl: string | undefined = req.body?.image || req.body?.avatar;
+
+  if (imageFile) {
+    const { StorageAdapter } = await import("../../../helpers/storageAdapter");
+    const uploadResult = await StorageAdapter.uploadFile(imageFile, "users");
+    imageUrl = uploadResult.url;
+  }
+
+  if (!imageUrl) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "Please provide an image file (under key 'image', 'avatar', or 'file') or an image URL in body."
+    );
+  }
+
+  const result = await UserService.updateProfileImageToDB(user, imageUrl);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: "Profile image updated successfully",
+    data: result
+  });
+});
+
 export const UserController = {
   getAllUsers,
   getUserById,
   createUser,
   getUserProfile,
   updateProfile,
+  updateProfileImage,
   deleteAccount,
   deleteUserByAdmin,
   toggleUserStatus
