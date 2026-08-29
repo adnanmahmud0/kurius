@@ -18,12 +18,19 @@ router
   .patch(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
     fileUploadHandler(),
-    (req: Request, res: Response, next: NextFunction) => {
-      if (req.body.data) {
-        req.body = UserValidation.updateUserZodSchema.parse(JSON.parse(req.body.data));
+    (req: Request, _res: Response, next: NextFunction) => {
+      try {
+        if (req.body.data && typeof req.body.data === "string") {
+          req.body = UserValidation.updateUserZodSchema.parse(JSON.parse(req.body.data));
+        } else if (req.body && Object.keys(req.body).length > 0) {
+          req.body = UserValidation.updateUserZodSchema.parse(req.body);
+        }
+        return next();
+      } catch (err) {
+        return next(err);
       }
-      return UserController.updateProfile(req, res, next);
-    }
+    },
+    UserController.updateProfile
   )
   .delete(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),

@@ -10,10 +10,13 @@ const createUserZodSchema = z.object({
 });
 
 const updateUserZodSchema = z.object({
-  name: z.string().optional(),
-  email: z.string().optional(),
-  password: z.string().optional(),
-  image: z.string().optional()
+  name: z.string().min(1, "Name cannot be empty").optional(),
+  firstName: z.string().nullable().optional(),
+  lastName: z.string().nullable().optional(),
+  contact: z.string().nullable().optional(),
+  location: z.string().nullable().optional(),
+  image: z.string().nullable().optional(),
+  avatar: z.string().nullable().optional()
 });
 
 export const UserValidation = {

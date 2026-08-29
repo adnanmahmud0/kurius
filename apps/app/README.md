@@ -276,12 +276,126 @@ Authorization: Bearer <accessToken>
 
 ---
 
-## 👤 6. User Profile
+## 👤 6. User Profile Management
 
-- **Get Profile**: `GET /user/profile` (Auth required)
-- **Update Profile**: `PATCH /user/profile` (Auth required, supports multipart avatar upload)
-  - `name`, `contact`, `location`, `image` (file)
-- **Delete Account**: `DELETE /user/delete-account` (Auth required)
+### 6.1 Get Current User Profile
+
+- **Endpoint**: `GET /user/profile`
+- **Auth**: Required (`Bearer <token>`)
+- **Response**:
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Profile data retrieved successfully",
+  "data": {
+    "id": "usr-12345",
+    "name": "Alex Smith",
+    "firstName": "Alex",
+    "lastName": "Smith",
+    "email": "alex@example.com",
+    "contact": "+1 (555) 234-5678",
+    "location": "San Francisco, CA",
+    "image": "https://api.kuriusapp.cloud/uploads/users/avatar-123.jpg",
+    "avatar": "https://api.kuriusapp.cloud/uploads/users/avatar-123.jpg",
+    "role": "USER",
+    "status": "active",
+    "verified": true,
+    "provider": "local",
+    "createdAt": "2026-08-20T10:00:00.000Z",
+    "updatedAt": "2026-08-29T15:00:00.000Z",
+    "stats": {
+      "videosCreated": 5,
+      "viewsCount": 142,
+      "likesCount": 38,
+      "commentsCount": 12
+    }
+  }
+}
+```
+
+---
+
+### 6.2 Update User Profile
+
+Users can update their personal information either via **JSON** (text updates) or **Multipart Form Data** (with avatar photo upload).
+
+- **Endpoint**: `PATCH /user/profile`
+- **Auth**: Required (`Bearer <token>`)
+
+#### Option A: JSON Body (Text Fields Only)
+
+- **Content-Type**: `application/json`
+
+```json
+{
+  "name": "Alex Smith",
+  "firstName": "Alex",
+  "lastName": "Smith",
+  "contact": "+1 (555) 987-6543",
+  "location": "New York, NY"
+}
+```
+
+#### Option B: Multipart Form-Data (With Avatar Image Upload)
+
+- **Content-Type**: `multipart/form-data`
+- **Fields**:
+  - `image` _(File, optional)_: User avatar image file (`.jpg`, `.png`, `.webp`)
+  - `name` _(string, optional)_: Full display name
+  - `firstName` _(string, optional)_
+  - `lastName` _(string, optional)_
+  - `contact` _(string, optional)_: Phone number
+  - `location` _(string, optional)_: City, Country
+
+#### 📱 Flutter / Dart Example (with Dio):
+
+```dart
+import 'package:dio/dio.dart';
+
+Future<Map<String, dynamic>> updateUserProfile({
+  String? name,
+  String? contact,
+  String? location,
+  String? avatarFilePath, // e.g. from ImagePicker
+}) async {
+  final formData = FormData.fromMap({
+    if (name != null) 'name': name,
+    if (contact != null) 'contact': contact,
+    if (location != null) 'location': location,
+    if (avatarFilePath != null)
+      'image': await MultipartFile.fromFile(
+        avatarFilePath,
+        filename: 'avatar.jpg',
+      ),
+  });
+
+  final response = await dio.patch(
+    '/user/profile',
+    data: formData,
+    options: Options(headers: {'Authorization': 'Bearer $token'}),
+  );
+
+  return response.data['data'];
+}
+```
+
+---
+
+### 6.3 Delete / Close User Account
+
+- **Endpoint**: `DELETE /user/profile`
+- **Auth**: Required (`Bearer <token>`)
+- **Response**:
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "User deleted successfully"
+}
+```
 
 ---
 

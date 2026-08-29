@@ -186,31 +186,84 @@ const createUserToDB = async (payload: Prisma.UserCreateInput) => {
 
 const getUserProfileFromDB = async (user: JwtPayload) => {
   const { id } = user;
-  const isExistUser = await prisma.user.findUnique({ where: { id } });
+  const isExistUser = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      role: true,
+      contact: true,
+      location: true,
+      image: true,
+      avatar: true,
+      status: true,
+      verified: true,
+      provider: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: {
+          videos: true,
+          views: true,
+          likes: true,
+          comments: true
+        }
+      }
+    }
+  });
   if (!isExistUser) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
   }
 
-  return isExistUser;
+  const { _count, ...rest } = isExistUser;
+  return {
+    ...rest,
+    stats: {
+      videosCreated: _count?.videos || 0,
+      viewsCount: _count?.views || 0,
+      likesCount: _count?.likes || 0,
+      commentsCount: _count?.comments || 0
+    }
+  };
 };
 
 const updateProfileToDB = async (user: JwtPayload, payload: Prisma.UserUpdateInput) => {
   const { id } = user;
   const isExistUser = await prisma.user.findUnique({ where: { id } });
   if (!isExistUser) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
   }
 
-  if (payload.image && isExistUser.image) {
-    unlinkFile(isExistUser.image);
+  // Clean up previous custom uploaded avatar/image if replacing
+  const { StorageAdapter } = await import("../../../helpers/storageAdapter");
+  if (
+    payload.image &&
+    typeof payload.image === "string" &&
+    isExistUser.image &&
+    !isExistUser.image.includes("ibb.co")
+  ) {
+    await StorageAdapter.deleteFile(isExistUser.image);
   }
 
-  const updateDoc = await prisma.user.update({
+  if (
+    payload.avatar &&
+    typeof payload.avatar === "string" &&
+    isExistUser.avatar &&
+    !isExistUser.avatar.includes("ibb.co") &&
+    isExistUser.avatar !== isExistUser.image
+  ) {
+    await StorageAdapter.deleteFile(isExistUser.avatar);
+  }
+
+  await prisma.user.update({
     where: { id },
     data: payload
   });
 
-  return updateDoc;
+  return getUserProfileFromDB(user);
 };
 
 const deleteAccountFromDB = async (user: JwtPayload) => {
