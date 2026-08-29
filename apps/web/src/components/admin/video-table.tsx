@@ -246,7 +246,7 @@ export function VideoTable() {
                         variant="ghost"
                         size="icon"
                         className="text-destructive hover:bg-destructive/10 h-8 w-8"
-                        title="Deactivate Video"
+                        title="Delete Video Permanently"
                         onClick={() => setDeletingVideo(vid)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -363,16 +363,25 @@ export function VideoTable() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate Video</AlertDialogTitle>
+            <AlertDialogTitle className="text-destructive">
+              Delete Video Permanently
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to deactivate &quot;{deletingVideo?.title}&quot;? It will no
-              longer be visible in public or mobile feeds.
+              Are you sure you want to permanently delete &quot;{deletingVideo?.title}&quot;?
+              <br />
+              <br />
+              This will permanently delete the media files (.mp4 video and thumbnail) from storage
+              and erase all records from the database. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deleteVideoMutation.isPending}>
-              Deactivate
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteVideoMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
