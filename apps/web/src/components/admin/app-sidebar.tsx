@@ -42,11 +42,6 @@ const mainNavItems = [
     icon: Video
   },
   {
-    title: "Media Library",
-    href: "/admin/media",
-    icon: Film
-  },
-  {
     title: "Upload Video",
     href: "/admin/videos/upload",
     icon: Upload
@@ -59,6 +54,11 @@ const mainNavItems = [
 ];
 
 const settingsNavItems = [
+  {
+    title: "Media Library",
+    href: "/admin/media",
+    icon: Film
+  },
   {
     title: "Storage Settings",
     href: "/admin/settings/storage",
