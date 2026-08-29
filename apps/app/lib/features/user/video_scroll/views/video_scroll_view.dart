@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:video_player/video_player.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../controllers/video_scroll_controller.dart';
 import '../widgets/video_top_bar.dart';
@@ -100,21 +101,53 @@ class VideoScrollView extends GetView<VideoScrollController> {
                     return Stack(
                       fit: StackFit.expand,
                       children: [
-                        // Video Background Image / Player with Fallback
-                        Image.network(
-                          thumbUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: const Color(0xFF1E2432),
-                            child: const Center(
-                              child: Icon(
-                                Icons.movie_creation_outlined,
-                                size: 80,
-                                color: Colors.white24,
+                        // Real Video Player or Thumbnail Background
+                        Obx(() {
+                          final isCurrent = controller.currentIndex.value == index;
+                          final isInitialized = controller.isVideoInitialized.value;
+                          final player = controller.activePlayerController;
+
+                          if (isCurrent && isInitialized && player != null) {
+                            return Center(
+                              child: AspectRatio(
+                                aspectRatio: player.value.aspectRatio > 0
+                                    ? player.value.aspectRatio
+                                    : 9 / 16,
+                                child: VideoPlayer(player),
+                              ),
+                            );
+                          }
+
+                          return Image.network(
+                            thumbUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: const Color(0xFF1E2432),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.movie_creation_outlined,
+                                  size: 80,
+                                  color: Colors.white24,
+                                ),
                               ),
                             ),
-                          ),
-                        ),
+                          );
+                        }),
+
+                        // Buffering / Loading Spinner
+                        Obx(() {
+                          final isCurrent = controller.currentIndex.value == index;
+                          final isBuffering = controller.isBuffering.value;
+                          if (isCurrent && isBuffering) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                color: AppColors.primary,
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        }),
 
                         // Gradient overlays for crisp text visibility
                         Positioned.fill(
@@ -135,7 +168,7 @@ class VideoScrollView extends GetView<VideoScrollController> {
                           ),
                         ),
 
-                        // Interactive Player Controls
+                        // Interactive Player Controls (10s back, Play/Pause, 10s forward, live seek bar & timers)
                         const Positioned.fill(
                           child: VideoPlayerControlsOverlay(),
                         ),

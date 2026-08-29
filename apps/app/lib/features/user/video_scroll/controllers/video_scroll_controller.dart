@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:video_player/video_player.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../../core/storage/storage_service.dart';
 import '../../../../data/repositories/video_repository.dart';
@@ -26,28 +27,34 @@ class VideoScrollController extends GetxController {
   VideoScrollController({this.videoRepository});
 
   late PageController pageController;
+  VideoPlayerController? activePlayerController;
 
   // Active Videos List
   final RxList<VideoModel> videos = <VideoModel>[].obs;
   final RxInt currentIndex = 0.obs;
 
-  // Playback States
+  // Video Player States
+  final RxBool isVideoInitialized = false.obs;
+  final RxBool isBuffering = false.obs;
   final RxBool isPlaying = true.obs;
   final RxBool isMuted = false.obs;
-  final RxDouble currentPosition = 0.0.obs; // In seconds
-  final RxDouble totalDuration = 60.0.obs; // In seconds
+  final RxDouble currentPosition = 0.0.obs; // in seconds
+  final RxDouble totalDuration = 0.0.obs; // in seconds
   final RxBool showControls = false.obs;
 
-  // Interaction States per video (liked states & like counts default to 0)
+  // Pagination States
+  int currentPage = 1;
+  final RxBool isLoadingMore = false.obs;
+  final RxBool hasMoreVideos = true.obs;
+
+  // Interaction States per video
   final RxMap<String, bool> likedMap = <String, bool>{}.obs;
   final RxMap<String, int> likesCountMap = <String, int>{}.obs;
 
-  // Comments (empty by default, no demo values)
+  // Comments (empty by default)
   final RxList<CommentItem> comments = <CommentItem>[].obs;
-
   final TextEditingController commentInputController = TextEditingController();
 
-  Timer? _playbackTimer;
   Timer? _controlsHideTimer;
 
   @override
@@ -68,16 +75,17 @@ class VideoScrollController extends GetxController {
       _fetchFallbackVideos();
     }
 
-    // Initialize like maps with default 0 for numbers
     _initVideoStates();
 
-    _startPlaybackSimulation();
+    if (videos.isNotEmpty) {
+      initializeVideoPlayer(currentIndex.value);
+    }
   }
 
   void _initVideoStates() {
     for (var video in videos) {
-      likedMap[video.id] = false;
-      likesCountMap[video.id] = video.initialLikes;
+      likedMap.putIfAbsent(video.id, () => false);
+      likesCountMap.putIfAbsent(video.id, () => video.initialLikes);
     }
   }
 
@@ -87,60 +95,173 @@ class VideoScrollController extends GetxController {
             ? Get.find<VideoRepository>()
             : null);
     if (repo != null) {
-      final res = await repo.fetchVideos(limit: 20);
-      if (res.data != null) {
+      final res = await repo.fetchVideos(page: 1, limit: 10);
+      if (res.data != null && res.data!.isNotEmpty) {
         videos.value = res.data!
             .map((item) => VideoModel.fromVideoItem(item))
             .toList();
         _initVideoStates();
+        initializeVideoPlayer(0);
       }
     }
   }
 
-  void _startPlaybackSimulation() {
-    _playbackTimer?.cancel();
-    _playbackTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      if (isPlaying.value) {
-        if (currentPosition.value < totalDuration.value) {
-          currentPosition.value += 0.5;
-        } else {
-          // Loop video playback
-          currentPosition.value = 0.0;
-        }
+  // ---------------------------------------------------------------------------
+  // Video Player Lifecycle & Playback Management
+  // ---------------------------------------------------------------------------
+
+  Future<void> initializeVideoPlayer(int index) async {
+    if (index < 0 || index >= videos.length) return;
+
+    try {
+      isVideoInitialized.value = false;
+      isBuffering.value = true;
+
+      // Safely dispose active player
+      final oldController = activePlayerController;
+      activePlayerController = null;
+      if (oldController != null) {
+        await oldController.dispose();
       }
-    });
+
+      final targetVideo = videos[index];
+      final videoUrl = targetVideo.fullVideoUrl;
+      debugPrint('🎬 [VideoScrollController] Initializing video player for URL: $videoUrl');
+
+      final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
+      activePlayerController = controller;
+
+      await controller.initialize();
+      controller.setLooping(true);
+      controller.setVolume(isMuted.value ? 0.0 : 1.0);
+
+      // Listen for playback updates
+      controller.addListener(() {
+        if (activePlayerController == controller && controller.value.isInitialized) {
+          currentPosition.value =
+              controller.value.position.inMilliseconds / 1000.0;
+          totalDuration.value =
+              controller.value.duration.inMilliseconds / 1000.0;
+          isPlaying.value = controller.value.isPlaying;
+          isBuffering.value = controller.value.isBuffering;
+        }
+      });
+
+      await controller.play();
+      isVideoInitialized.value = true;
+      isBuffering.value = false;
+    } catch (e) {
+      debugPrint('⚠️ [VideoScrollController] Video playback initialization failed: $e');
+      isVideoInitialized.value = false;
+      isBuffering.value = false;
+    }
   }
 
   void onPageChanged(int index) {
     currentIndex.value = index;
-    currentPosition.value = 0.0;
-    isPlaying.value = true;
     _resetControlsHideTimer();
+
+    // Check Pagination Trigger
+    if (index >= videos.length - 2 && hasMoreVideos.value && !isLoadingMore.value) {
+      loadMoreVideos();
+    }
+
+    // Initialize player for newly scrolled video
+    initializeVideoPlayer(index);
   }
 
+  // ---------------------------------------------------------------------------
+  // Pagination / Infinite Scrolling
+  // ---------------------------------------------------------------------------
+
+  Future<void> loadMoreVideos() async {
+    if (isLoadingMore.value || !hasMoreVideos.value) return;
+
+    isLoadingMore.value = true;
+    debugPrint('🔄 [VideoScrollController.loadMoreVideos] Fetching page ${currentPage + 1}...');
+
+    try {
+      final repo = videoRepository ??
+          (Get.isRegistered<VideoRepository>()
+              ? Get.find<VideoRepository>()
+              : null);
+
+      if (repo != null) {
+        final res = await repo.fetchVideos(page: currentPage + 1, limit: 10);
+        if (res.data != null && res.data!.isNotEmpty) {
+          final newVideos = res.data!
+              .map((item) => VideoModel.fromVideoItem(item))
+              .toList();
+
+          videos.addAll(newVideos);
+          currentPage++;
+          _initVideoStates();
+
+          if (newVideos.length < 10) {
+            hasMoreVideos.value = false;
+          }
+        } else {
+          hasMoreVideos.value = false;
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ [VideoScrollController.loadMoreVideos] Error loading page: $e');
+    } finally {
+      isLoadingMore.value = false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Player Controls (Play, Pause, Mute, 10s Skip, Slider Seek)
+  // ---------------------------------------------------------------------------
+
   void togglePlayPause() {
-    isPlaying.value = !isPlaying.value;
+    if (activePlayerController != null && isVideoInitialized.value) {
+      if (activePlayerController!.value.isPlaying) {
+        activePlayerController!.pause();
+      } else {
+        activePlayerController!.play();
+      }
+    } else {
+      isPlaying.value = !isPlaying.value;
+    }
     triggerShowControls();
   }
 
   void toggleMute() {
     isMuted.value = !isMuted.value;
+    activePlayerController?.setVolume(isMuted.value ? 0.0 : 1.0);
   }
 
   void skipForward10() {
-    currentPosition.value =
-        (currentPosition.value + 10.0).clamp(0.0, totalDuration.value);
+    if (activePlayerController != null && isVideoInitialized.value) {
+      final target = activePlayerController!.value.position + const Duration(seconds: 10);
+      final maxDuration = activePlayerController!.value.duration;
+      activePlayerController!.seekTo(target > maxDuration ? maxDuration : target);
+    } else {
+      currentPosition.value =
+          (currentPosition.value + 10.0).clamp(0.0, totalDuration.value);
+    }
     triggerShowControls();
   }
 
   void skipBackward10() {
-    currentPosition.value =
-        (currentPosition.value - 10.0).clamp(0.0, totalDuration.value);
+    if (activePlayerController != null && isVideoInitialized.value) {
+      final target = activePlayerController!.value.position - const Duration(seconds: 10);
+      activePlayerController!.seekTo(target < Duration.zero ? Duration.zero : target);
+    } else {
+      currentPosition.value =
+          (currentPosition.value - 10.0).clamp(0.0, totalDuration.value);
+    }
     triggerShowControls();
   }
 
   void seekTo(double seconds) {
-    currentPosition.value = seconds.clamp(0.0, totalDuration.value);
+    if (activePlayerController != null && isVideoInitialized.value) {
+      activePlayerController!.seekTo(Duration(milliseconds: (seconds * 1000).toInt()));
+    } else {
+      currentPosition.value = seconds.clamp(0.0, totalDuration.value);
+    }
   }
 
   bool _checkAuthRequirement(String action) {
@@ -175,7 +296,7 @@ class VideoScrollController extends GetxController {
     likesCountMap[videoId] =
         !currentLiked ? currentLikes + 1 : (currentLikes > 0 ? currentLikes - 1 : 0);
 
-    // Trigger background API call if registered
+    // Trigger background API call
     final repo = videoRepository ??
         (Get.isRegistered<VideoRepository>()
             ? Get.find<VideoRepository>()
@@ -229,8 +350,9 @@ class VideoScrollController extends GetxController {
 
   @override
   void onClose() {
-    _playbackTimer?.cancel();
     _controlsHideTimer?.cancel();
+    activePlayerController?.dispose();
+    activePlayerController = null;
     pageController.dispose();
     commentInputController.dispose();
     super.onClose();

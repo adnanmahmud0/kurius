@@ -23,6 +23,19 @@ class VideoModel {
     this.description = '',
   });
 
+  /// Default production streaming video URL
+  static const String defaultSampleVideoUrl =
+      'https://api.kuriusapp.cloud/uploads/videos/790f0ee3-b99f-4330-8bc3-86d37d56ff12.mp4';
+
+  /// Resolves the absolute playable video URL
+  String get fullVideoUrl {
+    final raw = videoUrl.trim();
+    if (raw.isEmpty) return defaultSampleVideoUrl;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    final path = raw.startsWith('/') ? raw : '/$raw';
+    return 'https://api.kuriusapp.cloud$path';
+  }
+
   /// Curated educational and curiosity fallback thumbnails when video has no thumbnail
   static const List<String> fallbackThumbnails = [
     'https://images.unsplash.com/photo-1507499739999-097706ad8914?w=800&auto=format&fit=crop&q=80', // Curiosity / Lightbulb

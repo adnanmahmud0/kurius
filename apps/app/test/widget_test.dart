@@ -80,29 +80,47 @@ void main() {
     expect(profileController.learningHistoryIds, isEmpty);
   });
 
-  test('VideoModel fallback thumbnail and auth protection on actions', () {
+  test('VideoModel full video URL and fallback thumbnail tests', () {
     const videoNoThumb = VideoModel(
       id: 'vid-123',
       title: 'Curiosity in Physics',
       category: 'Science',
       imageUrl: '',
+      videoUrl: '/uploads/videos/790f0ee3-b99f-4330-8bc3-86d37d56ff12.mp4',
     );
 
     // Ensure fallback thumbnail is non-empty and starts with https://
     expect(videoNoThumb.displayThumbnail, isNotEmpty);
     expect(videoNoThumb.displayThumbnail.startsWith('https://'), isTrue);
 
+    // Ensure fullVideoUrl resolves to https://api.kuriusapp.cloud/...
+    expect(
+      videoNoThumb.fullVideoUrl,
+      'https://api.kuriusapp.cloud/uploads/videos/790f0ee3-b99f-4330-8bc3-86d37d56ff12.mp4',
+    );
+
+    // Test default fallback video url when empty
+    const videoEmptyUrl = VideoModel(
+      id: 'vid-456',
+      title: 'Test',
+      category: 'General',
+      imageUrl: '',
+    );
+    expect(videoEmptyUrl.fullVideoUrl, VideoModel.defaultSampleVideoUrl);
+
     // Test unauthenticated like/comment check
     Get.put(StorageService());
     final videoController = Get.put(VideoScrollController());
 
     videoController.toggleLike('vid-123');
-    // Expect like not added for unauthenticated guest
     expect(videoController.likedMap['vid-123'] ?? false, isFalse);
 
     videoController.addComment('A test comment');
-    // Expect comment not added for unauthenticated guest
     expect(videoController.comments, isEmpty);
+
+    // Test format duration
+    expect(videoController.formatDuration(65), '1:05');
+    expect(videoController.formatDuration(0), '0:00');
   });
 
   test('HomeController and VideoModel defaults to 0 and empty', () {
