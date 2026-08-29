@@ -54,26 +54,35 @@ class ApiResponse<T> {
   }
 }
 
-/// Pagination metadata for list responses
+/// Pagination metadata for list responses (supports offset and cursor pagination)
 class PaginationMeta {
   final int page;
   final int limit;
   final int total;
   final int totalPage;
+  final String? nextCursor;
+  final bool hasNextPage;
 
   const PaginationMeta({
     this.page = 1,
     this.limit = 10,
     this.total = 0,
     this.totalPage = 1,
+    this.nextCursor,
+    this.hasNextPage = false,
   });
 
   factory PaginationMeta.fromJson(Map<String, dynamic> json) {
+    final cursor = json['nextCursor'] as String? ?? json['cursor'] as String?;
+    final hasNext = json['hasNextPage'] as bool? ?? (cursor != null && cursor.isNotEmpty);
+
     return PaginationMeta(
       page: (json['page'] as num?)?.toInt() ?? 1,
       limit: (json['limit'] as num?)?.toInt() ?? 10,
       total: (json['total'] as num?)?.toInt() ?? 0,
       totalPage: (json['totalPage'] as num?)?.toInt() ?? 1,
+      nextCursor: cursor,
+      hasNextPage: hasNext,
     );
   }
 
@@ -82,6 +91,8 @@ class PaginationMeta {
         'limit': limit,
         'total': total,
         'totalPage': totalPage,
+        if (nextCursor != null) 'nextCursor': nextCursor,
+        'hasNextPage': hasNextPage,
       };
 }
 

@@ -29,11 +29,26 @@ class VideoScrollController extends GetxController {
   late PageController pageController;
   VideoPlayerController? activePlayerController;
 
-  // Active Videos List
+  // Active Videos List & Index
   final RxList<VideoModel> videos = <VideoModel>[].obs;
   final RxInt currentIndex = 0.obs;
 
-  // Video Player States
+  // Loading & State Management
+  final RxBool isLoading = false.obs;
+  final RxBool isLoadingMore = false.obs;
+  final RxBool isRefreshing = false.obs;
+  final RxString errorMessage = ''.obs;
+  final RxBool isUnauthorized = false.obs;
+
+  // Filter & Query States
+  final RxString selectedCategoryId = ''.obs;
+  final RxString searchQuery = ''.obs;
+
+  // Cursor Pagination States
+  final Rx<String?> nextCursor = Rx<String?>(null);
+  final RxBool hasNextPage = true.obs;
+
+  // Video Playback States
   final RxBool isVideoInitialized = false.obs;
   final RxBool isBuffering = false.obs;
   final RxBool isPlaying = true.obs;
@@ -42,16 +57,12 @@ class VideoScrollController extends GetxController {
   final RxDouble totalDuration = 0.0.obs; // in seconds
   final RxBool showControls = false.obs;
 
-  // Pagination States
-  int currentPage = 1;
-  final RxBool isLoadingMore = false.obs;
-  final RxBool hasMoreVideos = true.obs;
-
   // Interaction States per video
   final RxMap<String, bool> likedMap = <String, bool>{}.obs;
   final RxMap<String, int> likesCountMap = <String, int>{}.obs;
+  final RxMap<String, int> viewsCountMap = <String, int>{}.obs;
 
-  // Comments (empty by default)
+  // Comments List
   final RxList<CommentItem> comments = <CommentItem>[].obs;
   final TextEditingController commentInputController = TextEditingController();
 
@@ -61,48 +72,216 @@ class VideoScrollController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // Check passed arguments
+    // Check passed arguments (e.g. from Home or Explore)
     if (Get.arguments != null && Get.arguments is Map) {
       final args = Get.arguments as Map;
       if (args['videos'] != null) {
         videos.value = List<VideoModel>.from(args['videos']);
+      }
+      if (args['categoryId'] != null) {
+        selectedCategoryId.value = args['categoryId'] as String;
+      }
+      if (args['search'] != null) {
+        searchQuery.value = args['search'] as String;
       }
       final initialIdx = args['initialIndex'] as int? ?? 0;
       currentIndex.value = initialIdx;
       pageController = PageController(initialPage: initialIdx);
     } else {
       pageController = PageController(initialPage: 0);
-      _fetchFallbackVideos();
     }
 
     _initVideoStates();
 
     if (videos.isNotEmpty) {
       initializeVideoPlayer(currentIndex.value);
+    } else {
+      loadInitialVideos(
+        categoryId: selectedCategoryId.value.isNotEmpty ? selectedCategoryId.value : null,
+        search: searchQuery.value.isNotEmpty ? searchQuery.value : null,
+      );
     }
   }
 
   void _initVideoStates() {
     for (var video in videos) {
-      likedMap.putIfAbsent(video.id, () => false);
+      likedMap.putIfAbsent(video.id, () => video.isLiked);
       likesCountMap.putIfAbsent(video.id, () => video.initialLikes);
+      viewsCountMap.putIfAbsent(video.id, () => video.initialViews);
     }
   }
 
-  Future<void> _fetchFallbackVideos() async {
-    final repo = videoRepository ??
-        (Get.isRegistered<VideoRepository>()
-            ? Get.find<VideoRepository>()
-            : null);
-    if (repo != null) {
-      final res = await repo.fetchVideos(page: 1, limit: 10);
+  VideoRepository get _effectiveRepository =>
+      videoRepository ??
+      (Get.isRegistered<VideoRepository>()
+          ? Get.find<VideoRepository>()
+          : const VideoRepository());
+
+  // ---------------------------------------------------------------------------
+  // Video Feed Fetching with Cursor Pagination
+  // ---------------------------------------------------------------------------
+
+  /// Initial load or filter change: resets cursor and loads page 1
+  Future<void> loadInitialVideos({String? categoryId, String? search}) async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    isUnauthorized.value = false;
+    nextCursor.value = null;
+    hasNextPage.value = true;
+
+    if (categoryId != null) selectedCategoryId.value = categoryId;
+    if (search != null) searchQuery.value = search;
+
+    try {
+      final res = selectedCategoryId.value.isNotEmpty
+          ? await _effectiveRepository.getVideosByCategory(
+              selectedCategoryId.value,
+              limit: 10,
+            )
+          : await _effectiveRepository.fetchVideos(
+              limit: 10,
+              search: searchQuery.value.isNotEmpty ? searchQuery.value : null,
+              categoryId: selectedCategoryId.value.isNotEmpty ? selectedCategoryId.value : null,
+            );
+
+      if (res.statusCode == 401) {
+        isUnauthorized.value = true;
+      }
+
       if (res.data != null && res.data!.isNotEmpty) {
         videos.value = res.data!
             .map((item) => VideoModel.fromVideoItem(item))
             .toList();
+        nextCursor.value = res.meta?.nextCursor;
+        hasNextPage.value = res.meta?.hasNextPage ?? (res.meta?.nextCursor != null);
+        _initVideoStates();
+
+        if (videos.isNotEmpty) {
+          initializeVideoPlayer(0);
+        }
+      } else {
+        if (!isUnauthorized.value && (res.message != null && res.message!.isNotEmpty && !res.success)) {
+          errorMessage.value = res.message!;
+        }
+        hasNextPage.value = false;
+      }
+    } catch (e) {
+      debugPrint('❌ [VideoScrollController.loadInitialVideos] Error: $e');
+      errorMessage.value = 'Failed to load video feed. Please try again.';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// Pull-to-refresh: resets cursor and reloads first page
+  Future<void> refreshVideos() async {
+    isRefreshing.value = true;
+    errorMessage.value = '';
+    nextCursor.value = null;
+    hasNextPage.value = true;
+
+    try {
+      final res = selectedCategoryId.value.isNotEmpty
+          ? await _effectiveRepository.getVideosByCategory(
+              selectedCategoryId.value,
+              limit: 10,
+            )
+          : await _effectiveRepository.fetchVideos(
+              limit: 10,
+              search: searchQuery.value.isNotEmpty ? searchQuery.value : null,
+              categoryId: selectedCategoryId.value.isNotEmpty ? selectedCategoryId.value : null,
+            );
+
+      if (res.data != null && res.data!.isNotEmpty) {
+        videos.value = res.data!
+            .map((item) => VideoModel.fromVideoItem(item))
+            .toList();
+        nextCursor.value = res.meta?.nextCursor;
+        hasNextPage.value = res.meta?.hasNextPage ?? (res.meta?.nextCursor != null);
+        _initVideoStates();
+
+        final idx = currentIndex.value.clamp(0, videos.length - 1);
+        initializeVideoPlayer(idx);
+      }
+    } catch (e) {
+      debugPrint('⚠️ [VideoScrollController.refreshVideos] Error: $e');
+    } finally {
+      isRefreshing.value = false;
+    }
+  }
+
+  /// Infinite scroll cursor pagination: appends new videos
+  Future<void> loadMoreVideos() async {
+    if (isLoadingMore.value || !hasNextPage.value) return;
+
+    final cursor = nextCursor.value;
+    if (cursor == null && videos.isNotEmpty) {
+      // No more pages to fetch
+      hasNextPage.value = false;
+      return;
+    }
+
+    isLoadingMore.value = true;
+    debugPrint('🔄 [VideoScrollController.loadMoreVideos] Fetching cursor: $cursor');
+
+    try {
+      final res = selectedCategoryId.value.isNotEmpty
+          ? await _effectiveRepository.getVideosByCategory(
+              selectedCategoryId.value,
+              limit: 10,
+              cursor: cursor,
+            )
+          : await _effectiveRepository.fetchVideos(
+              limit: 10,
+              cursor: cursor,
+              search: searchQuery.value.isNotEmpty ? searchQuery.value : null,
+              categoryId: selectedCategoryId.value.isNotEmpty ? selectedCategoryId.value : null,
+            );
+
+      if (res.data != null && res.data!.isNotEmpty) {
+        final newItems = res.data!
+            .map((item) => VideoModel.fromVideoItem(item))
+            .toList();
+
+        // Prevent duplicates
+        final existingIds = videos.map((v) => v.id).toSet();
+        final uniqueNew = newItems.where((v) => !existingIds.contains(v.id)).toList();
+
+        videos.addAll(uniqueNew);
+        nextCursor.value = res.meta?.nextCursor;
+        hasNextPage.value = res.meta?.hasNextPage ?? (res.meta?.nextCursor != null);
+        _initVideoStates();
+
+        if (newItems.length < 10 || res.meta?.nextCursor == null) {
+          hasNextPage.value = false;
+        }
+      } else {
+        hasNextPage.value = false;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [VideoScrollController.loadMoreVideos] Error: $e');
+    } finally {
+      isLoadingMore.value = false;
+    }
+  }
+
+  /// Fetch single video by ID
+  Future<void> getVideoById(String id) async {
+    isLoading.value = true;
+    try {
+      final res = await _effectiveRepository.getVideoById(id);
+      if (res.data != null) {
+        final video = VideoModel.fromVideoItem(res.data!);
+        videos.value = [video];
         _initVideoStates();
         initializeVideoPlayer(0);
+      } else {
+        errorMessage.value = res.message ?? 'Video not found';
       }
+    } catch (e) {
+      errorMessage.value = 'Failed to load video';
+    } finally {
+      isLoading.value = false;
     }
   }
 
@@ -117,7 +296,7 @@ class VideoScrollController extends GetxController {
       isVideoInitialized.value = false;
       isBuffering.value = true;
 
-      // Safely dispose active player
+      // Safely dispose old player
       final oldController = activePlayerController;
       activePlayerController = null;
       if (oldController != null) {
@@ -126,7 +305,12 @@ class VideoScrollController extends GetxController {
 
       final targetVideo = videos[index];
       final videoUrl = targetVideo.fullVideoUrl;
-      debugPrint('🎬 [VideoScrollController] Initializing video player for URL: $videoUrl');
+      debugPrint('🎬 [VideoScrollController] Initializing player: $videoUrl');
+
+      // Record view in background
+      _effectiveRepository.recordView(targetVideo.id);
+      final currentViews = viewsCountMap[targetVideo.id] ?? 0;
+      viewsCountMap[targetVideo.id] = currentViews + 1;
 
       final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
       activePlayerController = controller;
@@ -135,7 +319,7 @@ class VideoScrollController extends GetxController {
       controller.setLooping(true);
       controller.setVolume(isMuted.value ? 0.0 : 1.0);
 
-      // Listen for playback updates
+      // Synchronize player progress
       controller.addListener(() {
         if (activePlayerController == controller && controller.value.isInitialized) {
           currentPosition.value =
@@ -151,7 +335,7 @@ class VideoScrollController extends GetxController {
       isVideoInitialized.value = true;
       isBuffering.value = false;
     } catch (e) {
-      debugPrint('⚠️ [VideoScrollController] Video playback initialization failed: $e');
+      debugPrint('⚠️ [VideoScrollController] Video initialization failed: $e');
       isVideoInitialized.value = false;
       isBuffering.value = false;
     }
@@ -161,54 +345,13 @@ class VideoScrollController extends GetxController {
     currentIndex.value = index;
     _resetControlsHideTimer();
 
-    // Check Pagination Trigger
-    if (index >= videos.length - 2 && hasMoreVideos.value && !isLoadingMore.value) {
+    // Check Cursor Pagination Trigger
+    if (index >= videos.length - 2 && hasNextPage.value && !isLoadingMore.value) {
       loadMoreVideos();
     }
 
     // Initialize player for newly scrolled video
     initializeVideoPlayer(index);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Pagination / Infinite Scrolling
-  // ---------------------------------------------------------------------------
-
-  Future<void> loadMoreVideos() async {
-    if (isLoadingMore.value || !hasMoreVideos.value) return;
-
-    isLoadingMore.value = true;
-    debugPrint('🔄 [VideoScrollController.loadMoreVideos] Fetching page ${currentPage + 1}...');
-
-    try {
-      final repo = videoRepository ??
-          (Get.isRegistered<VideoRepository>()
-              ? Get.find<VideoRepository>()
-              : null);
-
-      if (repo != null) {
-        final res = await repo.fetchVideos(page: currentPage + 1, limit: 10);
-        if (res.data != null && res.data!.isNotEmpty) {
-          final newVideos = res.data!
-              .map((item) => VideoModel.fromVideoItem(item))
-              .toList();
-
-          videos.addAll(newVideos);
-          currentPage++;
-          _initVideoStates();
-
-          if (newVideos.length < 10) {
-            hasMoreVideos.value = false;
-          }
-        } else {
-          hasMoreVideos.value = false;
-        }
-      }
-    } catch (e) {
-      debugPrint('⚠️ [VideoScrollController.loadMoreVideos] Error loading page: $e');
-    } finally {
-      isLoadingMore.value = false;
-    }
   }
 
   // ---------------------------------------------------------------------------
@@ -264,6 +407,10 @@ class VideoScrollController extends GetxController {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // User Actions (Like, Comment, Share)
+  // ---------------------------------------------------------------------------
+
   bool _checkAuthRequirement(String action) {
     final storage = Get.isRegistered<StorageService>() ? Get.find<StorageService>() : StorageService.to;
     if (!storage.isLoggedIn()) {
@@ -296,17 +443,11 @@ class VideoScrollController extends GetxController {
     likesCountMap[videoId] =
         !currentLiked ? currentLikes + 1 : (currentLikes > 0 ? currentLikes - 1 : 0);
 
-    // Trigger background API call
-    final repo = videoRepository ??
-        (Get.isRegistered<VideoRepository>()
-            ? Get.find<VideoRepository>()
-            : null);
-    if (repo != null) {
-      if (!currentLiked) {
-        repo.likeVideo(videoId);
-      } else {
-        repo.unlikeVideo(videoId);
-      }
+    // Call backend API in background
+    if (!currentLiked) {
+      _effectiveRepository.likeVideo(videoId);
+    } else {
+      _effectiveRepository.unlikeVideo(videoId);
     }
   }
 

@@ -15,28 +15,30 @@ class VideoRepository {
   // Real Backend API Methods
   // ---------------------------------------------------------------------------
 
-  /// Fetch videos with page/cursor pagination, optional category filter and search term
+  /// Fetch videos with cursor pagination, optional search term and category ID
   Future<ApiResponse<List<VideoItemModel>>> fetchVideos({
-    int? page,
+    int? limit,
     String? cursor,
-    int limit = 10,
-    String? categoryId,
+    String? search,
     String? searchTerm,
+    String? categoryId,
+    int? page,
   }) async {
-    debugPrint('🎬 [VideoRepository.fetchVideos] Fetching video feed: page=$page, limit=$limit, cursor=$cursor, category=$categoryId, search=$searchTerm');
+    final searchVal = search ?? searchTerm;
+    debugPrint('🎬 [VideoRepository.fetchVideos] limit=$limit, cursor=$cursor, search=$searchVal, categoryId=$categoryId, page=$page');
+    
     final client = apiClient;
     if (client == null) {
       debugPrint('⚠️ [VideoRepository.fetchVideos] ApiClient is null, returning empty list');
       return const ApiResponse(success: true, data: []);
     }
 
-    final query = <String, dynamic>{
-      'limit': limit,
-    };
+    final query = <String, dynamic>{};
+    if (limit != null) query['limit'] = limit;
+    if (cursor != null && cursor.isNotEmpty) query['cursor'] = cursor;
     if (page != null) query['page'] = page;
-    if (cursor != null) query['cursor'] = cursor;
-    if (categoryId != null) query['categoryId'] = categoryId;
-    if (searchTerm != null && searchTerm.isNotEmpty) query['searchTerm'] = searchTerm;
+    if (categoryId != null && categoryId.isNotEmpty) query['categoryId'] = categoryId;
+    if (searchVal != null && searchVal.isNotEmpty) query['search'] = searchVal;
 
     final response = await client.get<List<VideoItemModel>>(
       ApiEndpoints.videos,
@@ -50,20 +52,46 @@ class VideoRepository {
         return [];
       },
     );
-    debugPrint('🎥 [VideoRepository.fetchVideos] Retrieved ${response.data?.length ?? 0} videos');
+    debugPrint('🎥 [VideoRepository.fetchVideos] Retrieved ${response.data?.length ?? 0} videos (nextCursor: ${response.meta?.nextCursor}, hasNext: ${response.meta?.hasNextPage})');
     return response;
   }
 
-  /// Fetch videos by category
-  Future<ApiResponse<List<VideoItemModel>>> fetchVideosByCategory(String categoryId) async {
-    debugPrint('📂 [VideoRepository.fetchVideosByCategory] Category ID: $categoryId');
+  /// Get video details by ID: GET /videos/{id}
+  Future<ApiResponse<VideoItemModel>> getVideoById(String id) async {
+    debugPrint('🔍 [VideoRepository.getVideoById] ID: $id');
+    final client = apiClient;
+    if (client == null) {
+      return const ApiResponse(success: false, message: 'ApiClient not initialized');
+    }
+
+    return client.get<VideoItemModel>(
+      ApiEndpoints.videoDetails(id),
+      fromJsonT: (data) => VideoItemModel.fromJson(data as Map<String, dynamic>),
+    );
+  }
+
+  /// Fetch single video by ID alias
+  Future<ApiResponse<VideoItemModel>> fetchVideoById(String id) => getVideoById(id);
+
+  /// Get videos by category with cursor pagination: GET /videos/category/{categoryId}
+  Future<ApiResponse<List<VideoItemModel>>> getVideosByCategory(
+    String categoryId, {
+    int? limit,
+    String? cursor,
+  }) async {
+    debugPrint('📂 [VideoRepository.getVideosByCategory] Category ID: $categoryId, limit=$limit, cursor=$cursor');
     final client = apiClient;
     if (client == null) {
       return const ApiResponse(success: true, data: []);
     }
 
+    final query = <String, dynamic>{};
+    if (limit != null) query['limit'] = limit;
+    if (cursor != null && cursor.isNotEmpty) query['cursor'] = cursor;
+
     return client.get<List<VideoItemModel>>(
       ApiEndpoints.videosByCategory(categoryId),
+      queryParameters: query.isNotEmpty ? query : null,
       fromJsonT: (data) {
         if (data is List) {
           return data
@@ -75,19 +103,9 @@ class VideoRepository {
     );
   }
 
-  /// Fetch single video by ID
-  Future<ApiResponse<VideoItemModel>> fetchVideoById(String id) async {
-    debugPrint('🔍 [VideoRepository.fetchVideoById] Video ID: $id');
-    final client = apiClient;
-    if (client == null) {
-      return const ApiResponse(success: false, message: 'ApiClient not initialized');
-    }
-
-    return client.get<VideoItemModel>(
-      ApiEndpoints.videoDetails(id),
-      fromJsonT: (data) => VideoItemModel.fromJson(data as Map<String, dynamic>),
-    );
-  }
+  /// Fetch videos by category alias
+  Future<ApiResponse<List<VideoItemModel>>> fetchVideosByCategory(String categoryId) =>
+      getVideosByCategory(categoryId);
 
   /// Like a video
   Future<ApiResponse<dynamic>> likeVideo(String id) async {

@@ -16,6 +16,48 @@ class VideoSideActions extends GetView<VideoScrollController> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Views Count Indicator
+        Obx(() {
+          final viewsCount = controller.viewsCountMap[video.id] ?? video.initialViews;
+
+          return Column(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white24, width: 1),
+                ),
+                child: const Icon(
+                  Icons.visibility_outlined,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$viewsCount',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  shadows: [
+                    const Shadow(
+                      color: Colors.black87,
+                      blurRadius: 4,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }),
+
+        const SizedBox(height: 14),
+
         // Like Button
         Obx(() {
           final isLiked = controller.likedMap[video.id] ?? false;
@@ -34,7 +76,7 @@ class VideoSideActions extends GetView<VideoScrollController> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
+                        color: Colors.black.withValues(alpha: 0.25),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -56,7 +98,7 @@ class VideoSideActions extends GetView<VideoScrollController> {
                   fontWeight: FontWeight.w700,
                   shadows: [
                     const Shadow(
-                      color: Colors.black54,
+                      color: Colors.black87,
                       blurRadius: 4,
                       offset: Offset(0, 1),
                     ),
@@ -82,7 +124,7 @@ class VideoSideActions extends GetView<VideoScrollController> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
+                      color: Colors.black.withValues(alpha: 0.25),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -97,21 +139,24 @@ class VideoSideActions extends GetView<VideoScrollController> {
             ),
             const SizedBox(height: 4),
             Obx(
-              () => Text(
-                '${controller.comments.length}',
-                style: GoogleFonts.outfit(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  shadows: [
-                    const Shadow(
-                      color: Colors.black54,
-                      blurRadius: 4,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
+              () {
+                final count = video.initialComments + controller.comments.length;
+                return Text(
+                  '$count',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    shadows: [
+                      const Shadow(
+                        color: Colors.black87,
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -125,14 +170,14 @@ class VideoSideActions extends GetView<VideoScrollController> {
           return GestureDetector(
             onTap: controller.toggleMute,
             child: Container(
-              width: 48,
-              height: 48,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
+                    color: Colors.black.withValues(alpha: 0.25),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -141,7 +186,7 @@ class VideoSideActions extends GetView<VideoScrollController> {
               child: Icon(
                 isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
                 color: isMuted ? AppColors.textSecondary : AppColors.textPrimary,
-                size: 24,
+                size: 22,
               ),
             ),
           );

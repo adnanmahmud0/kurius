@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:kurius/core/network/api_response.dart';
 import 'package:kurius/core/storage/storage_service.dart';
 import 'package:kurius/data/models/user/user_model.dart';
+import 'package:kurius/data/models/video/video_item_model.dart';
 import 'package:kurius/features/user/auth/controllers/auth_controller.dart';
 import 'package:kurius/features/user/home/controllers/home_controller.dart';
 import 'package:kurius/features/user/profile/controllers/profile_controller.dart';
@@ -80,12 +82,77 @@ void main() {
     expect(profileController.learningHistoryIds, isEmpty);
   });
 
+  test('VideoModel & VideoItemModel API JSON Deserialization Test', () {
+    final sampleJson = {
+      "id": "vid-999",
+      "title": "Quantum Computing 101",
+      "subtitle": "Understanding qubits and superposition",
+      "videoUrl": "https://api.kuriusapp.cloud/uploads/videos/quantum.mp4",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1635070041078-e363dbe005cb",
+      "categoryId": "cat-physics",
+      "hashtags": ["quantum", "physics", "tech"],
+      "status": "active",
+      "createdBy": "user-42",
+      "storageType": "local",
+      "createdAt": "2026-08-20T10:00:00.000Z",
+      "updatedAt": "2026-08-20T10:00:00.000Z",
+      "isLiked": true,
+      "category": {
+        "id": "cat-physics",
+        "name": "Physics",
+        "slug": "physics"
+      },
+      "creator": {
+        "id": "creator-1",
+        "name": "Dr. Sarah",
+        "avatar": "https://i.ibb.co.com/avatar.jpg"
+      },
+      "stats": {
+        "viewsCount": 1250,
+        "likesCount": 420,
+        "commentsCount": 18
+      }
+    };
+
+    final videoItem = VideoItemModel.fromJson(sampleJson);
+    expect(videoItem.id, 'vid-999');
+    expect(videoItem.title, 'Quantum Computing 101');
+    expect(videoItem.subtitle, 'Understanding qubits and superposition');
+    expect(videoItem.isLiked, isTrue);
+    expect(videoItem.categoryName, 'Physics');
+    expect(videoItem.creatorName, 'Dr. Sarah');
+    expect(videoItem.stats.viewsCount, 1250);
+    expect(videoItem.stats.likesCount, 420);
+    expect(videoItem.stats.commentsCount, 18);
+    expect(videoItem.hashtags, contains('quantum'));
+
+    final videoModel = VideoModel.fromJson(sampleJson);
+    expect(videoModel.id, 'vid-999');
+    expect(videoModel.initialLikes, 420);
+    expect(videoModel.initialViews, 1250);
+    expect(videoModel.initialComments, 18);
+    expect(videoModel.creatorName, 'Dr. Sarah');
+    expect(videoModel.categoryName, 'Physics');
+    expect(videoModel.hashtags.length, 3);
+  });
+
+  test('PaginationMeta Cursor and Pagination Parsing Test', () {
+    final metaJson = {
+      "limit": 10,
+      "nextCursor": "cursor-abc-123",
+      "hasNextPage": true
+    };
+
+    final meta = PaginationMeta.fromJson(metaJson);
+    expect(meta.limit, 10);
+    expect(meta.nextCursor, 'cursor-abc-123');
+    expect(meta.hasNextPage, isTrue);
+  });
+
   test('VideoModel full video URL and fallback thumbnail tests', () {
     const videoNoThumb = VideoModel(
       id: 'vid-123',
       title: 'Curiosity in Physics',
-      category: 'Science',
-      imageUrl: '',
       videoUrl: '/uploads/videos/790f0ee3-b99f-4330-8bc3-86d37d56ff12.mp4',
     );
 
@@ -103,8 +170,7 @@ void main() {
     const videoEmptyUrl = VideoModel(
       id: 'vid-456',
       title: 'Test',
-      category: 'General',
-      imageUrl: '',
+      videoUrl: '',
     );
     expect(videoEmptyUrl.fullVideoUrl, VideoModel.defaultSampleVideoUrl);
 
@@ -127,8 +193,7 @@ void main() {
     const video = VideoModel(
       id: 'v1',
       title: 'Sample Video',
-      category: 'Science',
-      imageUrl: '',
+      videoUrl: '',
       duration: '',
     );
     expect(video.initialLikes, 0);
