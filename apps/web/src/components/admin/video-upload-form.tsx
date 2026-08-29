@@ -68,11 +68,16 @@ export function VideoUploadForm() {
       return;
     }
 
+    const formattedTags = hashtags
+      .split(/[,\s]+/)
+      .map((s) => s.trim().replace(/^#/, ""))
+      .filter(Boolean);
+
     const formData = new FormData();
     formData.append("title", title.trim());
     formData.append("subtitle", subtitle.trim());
     formData.append("categoryId", categoryId);
-    formData.append("hashtags", hashtags);
+    formData.append("hashtags", JSON.stringify(formattedTags));
     formData.append("video", videoFile);
     if (thumbnailFile) {
       formData.append("thumbnail", thumbnailFile);

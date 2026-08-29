@@ -8,7 +8,7 @@ interface ICreateVideoPayload {
   title: string;
   subtitle: string;
   categoryId: string;
-  hashtags?: string[];
+  hashtags?: string[] | string;
   videoUrl?: string;
   thumbnailUrl?: string;
 }
@@ -17,11 +17,33 @@ interface IUpdateVideoPayload {
   title?: string;
   subtitle?: string;
   categoryId?: string;
-  hashtags?: string[];
+  hashtags?: string[] | string;
   status?: "active" | "delete";
   videoUrl?: string;
   thumbnailUrl?: string;
 }
+
+const parseHashtags = (input: unknown): string[] => {
+  if (!input) return [];
+  if (Array.isArray(input)) {
+    return input.map((tag) => String(tag).trim().replace(/^#/, "")).filter(Boolean);
+  }
+  if (typeof input === "string") {
+    try {
+      const parsed = JSON.parse(input);
+      if (Array.isArray(parsed)) {
+        return parsed.map((tag) => String(tag).trim().replace(/^#/, "")).filter(Boolean);
+      }
+    } catch {
+      // Not a JSON string
+    }
+    return input
+      .split(/[,\s]+/)
+      .map((tag) => tag.trim().replace(/^#/, ""))
+      .filter(Boolean);
+  }
+  return [];
+};
 
 // 1. Get Public / Flutter Feed with Cursor-based Pagination
 const getAllVideosFromDB = async (
@@ -209,7 +231,7 @@ const createVideoToDB = async (
       videoUrl: finalVideoUrl,
       thumbnailUrl: finalThumbnailUrl || null,
       categoryId: payload.categoryId,
-      hashtags: payload.hashtags || [],
+      hashtags: parseHashtags(payload.hashtags),
       status: "active",
       createdBy: creatorId,
       storageType,
@@ -324,7 +346,7 @@ const updateVideoInDB = async (
   if (payload.title) updateData.title = payload.title;
   if (payload.subtitle) updateData.subtitle = payload.subtitle;
   if (payload.categoryId) updateData.categoryId = payload.categoryId;
-  if (payload.hashtags !== undefined) updateData.hashtags = payload.hashtags;
+  if (payload.hashtags !== undefined) updateData.hashtags = parseHashtags(payload.hashtags);
   if (payload.status) updateData.status = payload.status;
   if (payload.videoUrl) updateData.videoUrl = payload.videoUrl;
   if (payload.thumbnailUrl) updateData.thumbnailUrl = payload.thumbnailUrl;
