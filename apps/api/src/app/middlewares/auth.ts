@@ -33,4 +33,24 @@ const auth =
     }
   };
 
+export const authOptional = () => async (req: Request, _res: Response, next: NextFunction) => {
+  try {
+    const tokenWithBearer = req.headers.authorization;
+    if (tokenWithBearer && tokenWithBearer.startsWith("Bearer")) {
+      const token = tokenWithBearer.split(" ")[1];
+      if (token) {
+        try {
+          const verifyUser = jwtHelper.verifyToken(token, config.jwt.jwt_secret as Secret);
+          req.user = verifyUser;
+        } catch {
+          // Proceed as unauthenticated guest
+        }
+      }
+    }
+    next();
+  } catch {
+    next();
+  }
+};
+
 export default auth;

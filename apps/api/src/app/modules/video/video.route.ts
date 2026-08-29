@@ -1,30 +1,16 @@
 import express from "express";
 
 import { USER_ROLES } from "../../../enums/user";
-import auth from "../../middlewares/auth";
+import auth, { authOptional } from "../../middlewares/auth";
 import { uploadVideoFiles } from "../../middlewares/uploadVideo";
 import { VideoController } from "./video.controller";
 
 const router = express.Router();
 
-// Public / User Endpoints (User, Admin, Super Admin)
-router.get(
-  "/",
-  auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-  VideoController.getAllVideos
-);
-
-router.get(
-  "/category/:categoryId",
-  auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-  VideoController.getVideosByCategory
-);
-
-router.get(
-  "/:id",
-  auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-  VideoController.getVideoById
-);
+// Public / Guest / User Endpoints (Optional Auth to track isLiked)
+router.get("/", authOptional(), VideoController.getAllVideos);
+router.get("/category/:categoryId", authOptional(), VideoController.getVideosByCategory);
+router.get("/:id", authOptional(), VideoController.getVideoById);
 
 // Admin Endpoints (Admin, Super Admin)
 router.get(
