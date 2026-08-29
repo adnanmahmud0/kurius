@@ -5,7 +5,11 @@ export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/dashboard");
-  const isAuthRoute = pathname === "/login" || pathname === "/register";
+  const isAuthRoute = pathname === "/login";
+
+  if (pathname === "/register") {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
   if (isAdminRoute && !token) {
     const loginUrl = new URL("/login", request.url);

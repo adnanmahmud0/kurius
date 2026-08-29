@@ -137,6 +137,7 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_PORT }}
           envs: DEPLOY_ENV,GH_DEPLOY_TOKEN,GH_ACTOR,GH_OWNER_LOWER,GH_REPOSITORY
+          timeout: 60s
           command_timeout: 30m
           script: |
             set -e
