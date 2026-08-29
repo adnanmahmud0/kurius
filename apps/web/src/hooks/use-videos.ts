@@ -114,7 +114,7 @@ export function useUpdateVideo() {
   });
 }
 
-// 5. Delete / Deactivate Video (Admin)
+// 5. Delete Video Permanently (Admin)
 export function useDeleteVideo() {
   const queryClient = useQueryClient();
 
@@ -125,7 +125,7 @@ export function useDeleteVideo() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "videos"] });
-      toast.success("Video deactivated successfully.");
+      toast.success("Video and media files deleted permanently.");
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to delete video");

@@ -160,16 +160,43 @@ const updateCategoryInDB = async (
   return updated;
 };
 
-// Soft delete category (Admin)
+// Delete category permanently from DB (Admin)
 const deleteCategoryFromDB = async (id: string) => {
-  const existing = await prisma.category.findUnique({ where: { id } });
+  const existing = await prisma.category.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: { videos: true }
+      }
+    }
+  });
+
   if (!existing) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Category not found!");
   }
 
-  const deleted = await prisma.category.update({
-    where: { id },
-    data: { status: "delete" }
+  // If category has associated videos, safely reassign them to another category
+  if (existing._count.videos > 0) {
+    let fallbackCategory = await prisma.category.findFirst({
+      where: { id: { not: id }, name: { in: ["General", "Uncategorized", "Other"] } }
+    });
+
+    if (!fallbackCategory) {
+      fallbackCategory = await prisma.category.findFirst({
+        where: { id: { not: id } }
+      });
+    }
+
+    if (fallbackCategory) {
+      await prisma.video.updateMany({
+        where: { categoryId: id },
+        data: { categoryId: fallbackCategory.id }
+      });
+    }
+  }
+
+  const deleted = await prisma.category.delete({
+    where: { id }
   });
 
   return deleted;

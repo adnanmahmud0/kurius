@@ -100,7 +100,7 @@ export function useDeleteCategory() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "categories"] });
-      toast.success("Category deactivated successfully.");
+      toast.success("Category deleted permanently.");
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to delete category");

@@ -8,7 +8,7 @@ interface ICreateVideoPayload {
   title: string;
   subtitle: string;
   categoryId: string;
-  hashtags?: string[];
+  hashtags?: string[] | string;
   videoUrl?: string;
   thumbnailUrl?: string;
 }
@@ -17,11 +17,33 @@ interface IUpdateVideoPayload {
   title?: string;
   subtitle?: string;
   categoryId?: string;
-  hashtags?: string[];
+  hashtags?: string[] | string;
   status?: "active" | "delete";
   videoUrl?: string;
   thumbnailUrl?: string;
 }
+
+const parseHashtags = (input: unknown): string[] => {
+  if (!input) return [];
+  if (Array.isArray(input)) {
+    return input.map((tag) => String(tag).trim().replace(/^#/, "")).filter(Boolean);
+  }
+  if (typeof input === "string") {
+    try {
+      const parsed = JSON.parse(input);
+      if (Array.isArray(parsed)) {
+        return parsed.map((tag) => String(tag).trim().replace(/^#/, "")).filter(Boolean);
+      }
+    } catch {
+      // Not a JSON string
+    }
+    return input
+      .split(/[,\s]+/)
+      .map((tag) => tag.trim().replace(/^#/, ""))
+      .filter(Boolean);
+  }
+  return [];
+};
 
 // 1. Get Public / Flutter Feed with Cursor-based Pagination
 const getAllVideosFromDB = async (
@@ -209,7 +231,7 @@ const createVideoToDB = async (
       videoUrl: finalVideoUrl,
       thumbnailUrl: finalThumbnailUrl || null,
       categoryId: payload.categoryId,
-      hashtags: payload.hashtags || [],
+      hashtags: parseHashtags(payload.hashtags),
       status: "active",
       createdBy: creatorId,
       storageType,
@@ -324,7 +346,7 @@ const updateVideoInDB = async (
   if (payload.title) updateData.title = payload.title;
   if (payload.subtitle) updateData.subtitle = payload.subtitle;
   if (payload.categoryId) updateData.categoryId = payload.categoryId;
-  if (payload.hashtags !== undefined) updateData.hashtags = payload.hashtags;
+  if (payload.hashtags !== undefined) updateData.hashtags = parseHashtags(payload.hashtags);
   if (payload.status) updateData.status = payload.status;
   if (payload.videoUrl) updateData.videoUrl = payload.videoUrl;
   if (payload.thumbnailUrl) updateData.thumbnailUrl = payload.thumbnailUrl;
@@ -359,19 +381,34 @@ const updateVideoInDB = async (
   return updated;
 };
 
-// 6. Delete / Deactivate Video (Admin)
+// 6. Delete Video (Database + Physical Storage)
 const deleteVideoInDB = async (id: string) => {
   const existing = await prisma.video.findUnique({ where: { id } });
   if (!existing) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Video not found!");
   }
 
-  const deactivated = await prisma.video.update({
-    where: { id },
-    data: { status: "delete" }
-  });
+  // 1. Delete physical video file from storage
+  if (existing.publicId) {
+    await StorageAdapter.deleteFile(existing.publicId, existing.storageType);
+  } else if (existing.videoUrl) {
+    await StorageAdapter.deleteFile(existing.videoUrl, existing.storageType);
+  }
 
-  return deactivated;
+  // 2. Delete physical thumbnail file from storage
+  if (existing.thumbnailUrl) {
+    await StorageAdapter.deleteFile(existing.thumbnailUrl, existing.storageType);
+  }
+
+  // 3. Remove all views, likes, comments, and the video record from database
+  await prisma.$transaction([
+    prisma.videoView.deleteMany({ where: { videoId: id } }),
+    prisma.videoLike.deleteMany({ where: { videoId: id } }),
+    prisma.comment.deleteMany({ where: { videoId: id } }),
+    prisma.video.delete({ where: { id } })
+  ]);
+
+  return { id, message: "Video and associated files deleted from database and storage." };
 };
 
 export const VideoService = {

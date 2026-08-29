@@ -87,11 +87,35 @@ const getUserById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const deleteUserByAdmin = catchAsync(async (req: Request, res: Response) => {
+  const result = await UserService.deleteUserByAdminFromDB(req.params.id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: result.message,
+    data: result
+  });
+});
+
+const toggleUserStatus = catchAsync(async (req: Request, res: Response) => {
+  const result = await UserService.toggleUserStatusByAdminFromDB(req.params.id, req.body?.status);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: result.message,
+    data: result
+  });
+});
+
 export const UserController = {
   getAllUsers,
   getUserById,
   createUser,
   getUserProfile,
   updateProfile,
-  deleteAccount
+  deleteAccount,
+  deleteUserByAdmin,
+  toggleUserStatus
 };

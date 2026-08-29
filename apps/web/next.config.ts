@@ -30,6 +30,16 @@ const nextConfig: NextConfig = {
       }
     }
   },
+  async rewrites() {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+    const apiOrigin = apiUrl.replace(/\/api\/v1\/?$/, "");
+    return [
+      {
+        source: "/uploads/:path*",
+        destination: `${apiOrigin}/uploads/:path*`
+      }
+    ];
+  },
   webpack(config) {
     const rules = config.module.rules as RuleSetRule[];
     const fileLoaderRule = rules.find(

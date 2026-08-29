@@ -1,8 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import type { ApiResponse, IUser } from "@repo/types";
 
-import { get } from "@/lib/api";
+import { del, get, patch } from "@/lib/api";
 
 interface UserListResponse {
   pagination?: {
@@ -51,5 +52,42 @@ export function useAdminUserDetail(id: string, enabled = true) {
       return response.data;
     },
     enabled: Boolean(id) && enabled
+  });
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await del<ApiResponse<null>>(`/user/${id}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      toast.success("User account deleted permanently.");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to delete user account.");
+    }
+  });
+}
+
+export function useToggleUserStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status?: "active" | "delete" }) => {
+      const response = await patch<ApiResponse<null>>(`/user/${id}/status`, { status });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "user"] });
+      toast.success(data?.message || "User status updated successfully.");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to update user status.");
+    }
   });
 }

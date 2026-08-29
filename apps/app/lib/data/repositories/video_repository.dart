@@ -1,8 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart' hide FormData, MultipartFile;
 import '../../core/constants/api_endpoints.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_response.dart';
+import '../../core/storage/storage_service.dart';
 import '../../features/user/video_scroll/models/video_model.dart';
 import '../models/video/video_item_model.dart';
 
@@ -123,12 +125,22 @@ class VideoRepository {
     return client.delete(ApiEndpoints.videoLike(id));
   }
 
-  /// Record 24-hour deduplicated video view
+  /// Record video view safely (only for authenticated sessions)
   Future<ApiResponse<dynamic>> recordView(String id) async {
-    debugPrint('👁️ [VideoRepository.recordView] Recording view for video: $id');
+    final storage = Get.isRegistered<StorageService>() ? Get.find<StorageService>() : StorageService.to;
+    if (!storage.isLoggedIn()) {
+      return const ApiResponse(success: true);
+    }
+
     final client = apiClient;
     if (client == null) return const ApiResponse(success: true);
-    return client.post(ApiEndpoints.videoView(id));
+
+    try {
+      return await client.post(ApiEndpoints.videoView(id));
+    } catch (e) {
+      debugPrint('ℹ️ [VideoRepository.recordView] View record notice: $e');
+      return const ApiResponse(success: false);
+    }
   }
 
   /// Upload a video with multipart form data

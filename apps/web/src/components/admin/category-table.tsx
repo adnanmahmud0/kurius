@@ -282,20 +282,23 @@ export function CategoryTable() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate Category</AlertDialogTitle>
+            <AlertDialogTitle className="text-destructive">Delete Category</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to deactivate category &quot;{deletingCategory?.name}&quot;?
-              Videos assigned to this category will remain, but the category won&apos;t appear in
-              public feeds.
+              Are you sure you want to permanently delete category &quot;{deletingCategory?.name}
+              &quot;? This action will remove the category from the database permanently.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deleteCategoryMutation.isPending}>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteCategoryMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               {deleteCategoryMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Deactivate
+              Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

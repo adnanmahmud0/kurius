@@ -24,7 +24,9 @@ export function VideoUploadForm() {
   const [categoryId, setCategoryId] = useState("");
   const [hashtags, setHashtags] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const { data: categories = [], isLoading: isLoadingCategories } = useCategories();
@@ -42,7 +44,14 @@ export function VideoUploadForm() {
         return;
       }
       setVideoFile(file);
+      setVideoPreviewUrl(URL.createObjectURL(file));
     }
+  };
+
+  const handleRemoveVideo = () => {
+    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+    setVideoFile(null);
+    setVideoPreviewUrl(null);
   };
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,7 +62,14 @@ export function VideoUploadForm() {
         return;
       }
       setThumbnailFile(file);
+      setThumbnailPreviewUrl(URL.createObjectURL(file));
     }
+  };
+
+  const handleRemoveThumbnail = () => {
+    if (thumbnailPreviewUrl) URL.revokeObjectURL(thumbnailPreviewUrl);
+    setThumbnailFile(null);
+    setThumbnailPreviewUrl(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,11 +84,16 @@ export function VideoUploadForm() {
       return;
     }
 
+    const formattedTags = hashtags
+      .split(/[,\s]+/)
+      .map((s) => s.trim().replace(/^#/, ""))
+      .filter(Boolean);
+
     const formData = new FormData();
     formData.append("title", title.trim());
     formData.append("subtitle", subtitle.trim());
     formData.append("categoryId", categoryId);
-    formData.append("hashtags", hashtags);
+    formData.append("hashtags", JSON.stringify(formattedTags));
     formData.append("video", videoFile);
     if (thumbnailFile) {
       formData.append("thumbnail", thumbnailFile);
@@ -121,33 +142,45 @@ export function VideoUploadForm() {
             <Label className="text-muted-foreground text-xs font-semibold uppercase">
               Video File (MP4, MKV, MOV, WebM · Max 500MB) *
             </Label>
-            {videoFile ? (
-              <div className="border-border bg-muted/30 flex items-center justify-between rounded-lg border p-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 text-primary rounded-lg p-2.5">
-                    <FileVideo className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="text-foreground max-w-xs truncate text-sm font-semibold sm:max-w-md">
-                      {videoFile.name}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
-                    </p>
-                  </div>
+            {videoFile && videoPreviewUrl ? (
+              <div className="border-border bg-muted/20 space-y-3 rounded-xl border p-4 shadow-xs">
+                <div className="relative aspect-video max-h-64 w-full overflow-hidden rounded-lg bg-black shadow-inner">
+                  <video
+                    src={videoPreviewUrl}
+                    controls
+                    playsInline
+                    className="h-full w-full object-contain"
+                  />
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setVideoFile(null)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="bg-primary/10 text-primary rounded-md p-1.5">
+                      <FileVideo className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-foreground max-w-xs truncate text-xs font-semibold sm:max-w-md">
+                        {videoFile.name}
+                      </p>
+                      <p className="text-muted-foreground text-[11px]">
+                        {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10 text-xs"
+                    onClick={handleRemoveVideo}
+                  >
+                    <X className="mr-1.5 h-3.5 w-3.5" />
+                    Change Video
+                  </Button>
+                </div>
               </div>
             ) : (
-              <label className="border-border hover:border-primary/50 bg-muted/10 hover:bg-muted/20 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors">
-                <div className="bg-primary/10 text-primary mb-3 rounded-full p-3">
+              <label className="border-border hover:border-primary/50 bg-muted/10 hover:bg-muted/20 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-colors">
+                <div className="bg-primary/10 text-primary mb-3 rounded-full p-3 shadow-xs">
                   <Upload className="h-6 w-6" />
                 </div>
                 <p className="text-foreground text-sm font-semibold">
@@ -171,33 +204,39 @@ export function VideoUploadForm() {
             <Label className="text-muted-foreground text-xs font-semibold uppercase">
               Thumbnail Cover Image (Optional · JPG, PNG, WebP)
             </Label>
-            {thumbnailFile ? (
-              <div className="border-border bg-muted/30 flex items-center justify-between rounded-lg border p-3">
+            {thumbnailFile && thumbnailPreviewUrl ? (
+              <div className="border-border bg-muted/20 flex items-center justify-between rounded-xl border p-3.5 shadow-xs">
                 <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 text-primary rounded-lg p-2">
-                    <ImageIcon className="h-5 w-5" />
+                  <div className="border-border/80 h-20 w-32 shrink-0 overflow-hidden rounded-lg border bg-black shadow-xs">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={thumbnailPreviewUrl}
+                      alt="Thumbnail preview"
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                   <div>
-                    <p className="text-foreground max-w-xs truncate text-xs font-semibold">
+                    <p className="text-foreground max-w-xs truncate text-xs font-semibold sm:max-w-sm">
                       {thumbnailFile.name}
                     </p>
-                    <p className="text-muted-foreground text-[10px]">
+                    <p className="text-muted-foreground text-[11px]">
                       {(thumbnailFile.size / 1024).toFixed(1)} KB
                     </p>
                   </div>
                 </div>
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setThumbnailFile(null)}
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10 text-xs"
+                  onClick={handleRemoveThumbnail}
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="mr-1.5 h-3.5 w-3.5" />
+                  Remove
                 </Button>
               </div>
             ) : (
-              <label className="border-border hover:border-primary/50 bg-muted/10 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 transition-colors">
+              <label className="border-border hover:border-primary/50 bg-muted/10 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-3.5 transition-colors">
                 <ImageIcon className="text-muted-foreground ml-2 h-5 w-5" />
                 <span className="text-muted-foreground text-xs font-medium">
                   Choose a custom thumbnail image (or leave empty)

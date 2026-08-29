@@ -179,11 +179,7 @@ class LatestVideosSection extends GetView<HomeController> {
               separatorBuilder: (context, index) => const SizedBox(width: 14),
               itemBuilder: (context, index) {
                 final video = controller.latestVideos[index];
-                final rawThumb = video.thumbnailUrl?.trim() ?? '';
-                final thumbUrl = rawThumb.isNotEmpty
-                    ? rawThumb
-                    : VideoModel.fallbackThumbnails[
-                        (video.id.hashCode.abs()) % VideoModel.fallbackThumbnails.length];
+                final thumbUrl = video.displayThumbnail;
 
                 return GestureDetector(
                   onTap: () => Get.toNamed(
