@@ -32,6 +32,7 @@ export const CategoryResponseDataSchema = z
     id: z.string(),
     name: z.string(),
     slug: z.string(),
+    thumbnail: z.string().nullable().optional(),
     status: z.string(),
     createdAt: z.string().or(z.date()),
     updatedAt: z.string().or(z.date()),

@@ -11,6 +11,7 @@ import "../app/modules/comment/comment.openapi";
 import "../app/modules/storage/storage.openapi";
 import "../app/modules/user/user.openapi";
 import "../app/modules/legal/legal.openapi";
+import "../app/modules/motivational-message/motivational-message.openapi";
 
 export const generateOpenApiDocument = () => {
   const generator = new OpenApiGeneratorV3(registry.definitions);
