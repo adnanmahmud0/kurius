@@ -11,15 +11,16 @@ class ExploreFilterChips extends GetView<DiscoverController> {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 38,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        clipBehavior: Clip.none,
-        itemCount: controller.categories.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          final category = controller.categories[index];
+      child: Obx(() {
+        final categoryList = controller.categories;
 
-          return Obx(() {
+        return ListView.separated(
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          itemCount: categoryList.length,
+          separatorBuilder: (context, index) => const SizedBox(width: 10),
+          itemBuilder: (context, index) {
+            final category = categoryList[index];
             final isSelected = controller.selectedCategory.value == category;
 
             return GestureDetector(
@@ -55,9 +56,9 @@ class ExploreFilterChips extends GetView<DiscoverController> {
                 ),
               ),
             );
-          });
-        },
-      ),
+          },
+        );
+      }),
     );
   }
 }

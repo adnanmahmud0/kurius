@@ -1,16 +1,32 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import '../../../../app/routes/app_routes.dart';
+import '../../../../core/network/api_exceptions.dart';
+import '../../../../core/network/error_handler.dart';
+import '../../../../data/repositories/category_repository.dart';
 import '../../../../data/repositories/video_repository.dart';
 import '../../video_scroll/models/video_model.dart';
-import '../../../../app/routes/app_routes.dart';
 
 class DiscoverController extends GetxController {
-  final VideoRepository _videoRepository = VideoRepository();
+  final VideoRepository? videoRepository;
+  final CategoryRepository? categoryRepository;
+
+  DiscoverController({
+    this.videoRepository,
+    this.categoryRepository,
+  });
 
   // Active Category Filter ('All', 'Mythology', etc.)
   final RxString selectedCategory = 'All'.obs;
 
   // Categories Filter List
-  final List<String> categories = ['All', 'Mythology', 'History', 'Science', 'Art'];
+  final RxList<String> categories = <String>['All'].obs;
+  final Map<String, String> categoryIdMap = {};
+
+  // Loading, Unauthorized & Error States
+  final RxBool isLoading = false.obs;
+  final RxBool isUnauthorized = false.obs;
+  final RxString errorMessage = ''.obs;
 
   // Videos List
   final RxList<VideoModel> allVideos = <VideoModel>[].obs;
@@ -19,12 +35,68 @@ class DiscoverController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    loadVideos();
+    loadDiscoverData();
   }
 
-  void loadVideos() {
-    allVideos.value = _videoRepository.getAllVideos();
-    filterCategory('All');
+  Future<void> loadDiscoverData() async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    isUnauthorized.value = false;
+
+    final vidRepo = videoRepository ??
+        (Get.isRegistered<VideoRepository>()
+            ? Get.find<VideoRepository>()
+            : null);
+    final catRepo = categoryRepository ??
+        (Get.isRegistered<CategoryRepository>()
+            ? Get.find<CategoryRepository>()
+            : null);
+
+    // 1. Fetch categories
+    if (catRepo != null) {
+      try {
+        final catRes = await catRepo.getCategories();
+        if (catRes.data != null && catRes.data!.isNotEmpty) {
+          final catNames = <String>['All'];
+          for (var c in catRes.data!) {
+            catNames.add(c.name);
+            categoryIdMap[c.name] = c.id;
+          }
+          categories.value = catNames;
+        }
+      } catch (e) {
+        debugPrint('⚠️ [DiscoverController.loadDiscoverData] Categories note: $e');
+      }
+    }
+
+    // 2. Fetch videos
+    if (vidRepo != null) {
+      try {
+        final vidRes = await vidRepo.fetchVideos(limit: 20);
+        if (vidRes.data != null) {
+          allVideos.value = vidRes.data!
+              .map((item) => VideoModel.fromVideoItem(item))
+              .toList();
+        } else {
+          allVideos.value = [];
+        }
+        isUnauthorized.value = false;
+      } on UnauthorizedException {
+        debugPrint('🔒 [DiscoverController.loadDiscoverData] Unauthorized.');
+        isUnauthorized.value = true;
+        allVideos.value = [];
+      } catch (e) {
+        debugPrint('⚠️ [DiscoverController.loadDiscoverData] Error: $e');
+        if (e.toString().contains('401') || e.toString().toLowerCase().contains('authorized')) {
+          isUnauthorized.value = true;
+        } else {
+          errorMessage.value = ErrorHandler.getErrorMessage(e);
+        }
+      }
+    }
+
+    filterCategory(selectedCategory.value);
+    isLoading.value = false;
   }
 
   void filterCategory(String category) {
@@ -39,6 +111,7 @@ class DiscoverController extends GetxController {
   }
 
   void openVideo(int initialIndex) {
+    if (filteredVideos.isEmpty) return;
     Get.toNamed(
       AppRoutes.videoScroll,
       arguments: {
