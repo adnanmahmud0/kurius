@@ -5,6 +5,7 @@ import { Secret } from "jsonwebtoken";
 import config from "../../config";
 import ApiError from "../../errors/ApiError";
 import { jwtHelper } from "../../helpers/jwtHelper";
+import prisma from "../../shared/prisma";
 
 const auth =
   (...roles: string[]) =>
@@ -19,11 +20,29 @@ const auth =
 
       //verify token
       const verifyUser = jwtHelper.verifyToken(token, config.jwt.jwt_secret as Secret);
+
+      // Check user existence and active status in real-time
+      const activeUser = await prisma.user.findUnique({
+        where: { id: verifyUser.id },
+        select: { id: true, status: true, role: true }
+      });
+
+      if (!activeUser) {
+        throw new ApiError(StatusCodes.UNAUTHORIZED, "Account no longer exists");
+      }
+
+      if (activeUser.status === "delete") {
+        throw new ApiError(
+          StatusCodes.FORBIDDEN,
+          "Your account has been suspended/blocked. Please contact support."
+        );
+      }
+
       //set user to header
       req.user = verifyUser;
 
-      //guard user
-      if (roles.length && !roles.includes(verifyUser.role)) {
+      //guard user role
+      if (roles.length && !roles.includes(activeUser.role)) {
         throw new ApiError(StatusCodes.FORBIDDEN, "You don't have permission to access this api");
       }
 

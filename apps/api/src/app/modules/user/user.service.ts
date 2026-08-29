@@ -19,7 +19,9 @@ const getAllUsersToDB = async (query: Record<string, unknown>) => {
   const limitNumber = Number(limit) || 10;
   const skip = (pageNumber - 1) * limitNumber;
 
-  const where: Prisma.UserWhereInput = {};
+  const where: Prisma.UserWhereInput = {
+    role: (filterData.role as USER_ROLES) || USER_ROLES.USER
+  };
 
   if (searchTerm) {
     where.OR = [
@@ -29,9 +31,12 @@ const getAllUsersToDB = async (query: Record<string, unknown>) => {
     ];
   }
 
-  if (Object.keys(filterData).length > 0) {
-    where.AND = Object.keys(filterData).map((key) => ({
-      [key]: filterData[key]
+  const otherFilters = { ...filterData };
+  delete otherFilters.role;
+
+  if (Object.keys(otherFilters).length > 0) {
+    where.AND = Object.keys(otherFilters).map((key) => ({
+      [key]: otherFilters[key]
     }));
   }
 
@@ -223,11 +228,68 @@ const deleteAccountFromDB = async (user: JwtPayload) => {
   return deleteDoc;
 };
 
+// Admin deletes user permanently and cleans up relations
+const deleteUserByAdminFromDB = async (id: string) => {
+  const isExistUser = await prisma.user.findUnique({ where: { id } });
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "User not found!");
+  }
+
+  if (isExistUser.role === USER_ROLES.SUPER_ADMIN) {
+    throw new ApiError(StatusCodes.FORBIDDEN, "Cannot delete Super Admin account!");
+  }
+
+  if (isExistUser.image) {
+    unlinkFile(isExistUser.image);
+  }
+
+  // Delete all user references (views, likes, comments, reset tokens) and the user record
+  await prisma.$transaction([
+    prisma.videoView.deleteMany({ where: { userId: id } }),
+    prisma.videoLike.deleteMany({ where: { userId: id } }),
+    prisma.comment.deleteMany({ where: { userId: id } }),
+    prisma.resetToken.deleteMany({ where: { userId: id } }),
+    prisma.user.delete({ where: { id } })
+  ]);
+
+  return { id, message: "User account and all associated activity deleted permanently." };
+};
+
+// Admin blocks / unblocks / updates user status
+const toggleUserStatusByAdminFromDB = async (id: string, status?: "active" | "delete") => {
+  const isExistUser = await prisma.user.findUnique({ where: { id } });
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "User not found!");
+  }
+
+  if (isExistUser.role === USER_ROLES.SUPER_ADMIN) {
+    throw new ApiError(StatusCodes.FORBIDDEN, "Cannot alter Super Admin status!");
+  }
+
+  const nextStatus = status || (isExistUser.status === "active" ? "delete" : "active");
+
+  const updated = await prisma.user.update({
+    where: { id },
+    data: { status: nextStatus }
+  });
+
+  return {
+    id: updated.id,
+    status: updated.status,
+    message:
+      nextStatus === "active"
+        ? "User account unblocked and activated."
+        : "User account blocked and suspended."
+  };
+};
+
 export const UserService = {
   getAllUsersToDB,
   getUserByIdFromDB,
   createUserToDB,
   getUserProfileFromDB,
   updateProfileToDB,
-  deleteAccountFromDB
+  deleteAccountFromDB,
+  deleteUserByAdminFromDB,
+  toggleUserStatusByAdminFromDB
 };

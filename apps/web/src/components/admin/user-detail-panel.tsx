@@ -1,29 +1,42 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import {
   ArrowLeft,
+  Ban,
   Calendar,
   CheckCircle2,
   Eye,
   Heart,
+  Loader2,
   Mail,
   MapPin,
   MessageSquare,
   Phone,
   Shield,
-  Video,
-  XCircle
+  Trash2,
+  UserCheck
 } from "lucide-react";
 
-import { useAdminUserDetail } from "@/hooks/use-admin-users";
+import { useAdminUserDetail, useDeleteUser, useToggleUserStatus } from "@/hooks/use-admin-users";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/ui/avatar";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
+import { Card, CardContent } from "@/ui/card";
 import { Skeleton } from "@/ui/skeleton";
 
 interface UserDetailPanelProps {
@@ -31,14 +44,20 @@ interface UserDetailPanelProps {
 }
 
 export function UserDetailPanel({ userId }: UserDetailPanelProps) {
+  const router = useRouter();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
+
   const { data: user, isLoading } = useAdminUserDetail(userId);
+  const deleteUserMutation = useDeleteUser();
+  const toggleStatusMutation = useToggleUserStatus();
 
   if (isLoading) {
     return (
       <div className="mx-auto max-w-4xl space-y-6">
         <Skeleton className="h-48 w-full rounded-xl" />
-        <div className="grid gap-4 sm:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-24 w-full rounded-xl" />
           ))}
         </div>
@@ -60,14 +79,21 @@ export function UserDetailPanel({ userId }: UserDetailPanelProps) {
     );
   }
 
+  const isBlocked = user.status === "delete";
+
+  const handleDelete = async () => {
+    await deleteUserMutation.mutateAsync(user.id);
+    setIsDeleting(false);
+    router.push("/admin/users");
+  };
+
+  const handleToggleBlock = async () => {
+    const nextStatus = isBlocked ? "active" : "delete";
+    await toggleStatusMutation.mutateAsync({ id: user.id, status: nextStatus });
+    setIsBlocking(false);
+  };
+
   const statTiles = [
-    {
-      title: "Videos Created",
-      value: user.stats?.videosCreated || 0,
-      icon: Video,
-      color: "text-blue-500",
-      bg: "bg-blue-500/10"
-    },
     {
       title: "Videos Viewed",
       value: user.stats?.viewsCount || 0,
@@ -94,74 +120,106 @@ export function UserDetailPanel({ userId }: UserDetailPanelProps) {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       {/* Header action */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href="/admin/users">
           <Button variant="ghost" size="sm" className="gap-2 text-xs font-semibold">
             <ArrowLeft className="h-4 w-4" />
             Back to User Directory
           </Button>
         </Link>
-        <Badge variant="outline" className="text-xs">
-          User ID: <span className="ml-1 font-mono">{user.id}</span>
-        </Badge>
+
+        <div className="flex items-center gap-2">
+          {isBlocked ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-emerald-500/30 text-xs text-emerald-600 hover:bg-emerald-500/10"
+              onClick={() => setIsBlocking(true)}
+              disabled={toggleStatusMutation.isPending}
+            >
+              <UserCheck className="h-4 w-4" />
+              Unblock Account
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-amber-500/30 text-xs text-amber-600 hover:bg-amber-500/10"
+              onClick={() => setIsBlocking(true)}
+              disabled={toggleStatusMutation.isPending}
+            >
+              <Ban className="h-4 w-4" />
+              Block / Suspend User
+            </Button>
+          )}
+
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={() => setIsDeleting(true)}
+            disabled={deleteUserMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Permanently
+          </Button>
+        </div>
       </div>
 
       {/* Main Profile Card */}
       <Card className="border-border/80 overflow-hidden border">
-        <div className="from-primary/20 via-primary/10 to-accent/20 border-border/60 h-28 border-b bg-gradient-to-r" />
-        <CardContent className="relative px-6 pt-0 pb-6">
-          <div className="-mt-12 mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex items-end gap-4">
-              <Avatar className="border-card h-24 w-24 border-4 shadow-md">
-                <AvatarImage src={user.avatar || undefined} alt={user.name || "User"} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
-                  {user.name?.[0] || "U"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="mb-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-foreground text-xl font-bold">
-                    {user.name || "Unnamed User"}
-                  </h2>
-                  <Badge
-                    variant={user.role === "SUPER_ADMIN" ? "default" : "outline"}
-                    className="text-[10px] font-bold uppercase"
-                  >
-                    {user.role}
+        <div className="bg-muted/40 border-border flex flex-col items-center gap-4 border-b p-6 sm:flex-row sm:items-start sm:gap-6">
+          <Avatar className="border-border h-20 w-20 border shadow-sm">
+            <AvatarImage src={user.avatar || undefined} alt={user.name || "User"} />
+            <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
+              {user.name?.[0] || "U"}
+            </AvatarFallback>
+          </Avatar>
+
+          <div className="flex-1 text-center sm:text-left">
+            <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+              <h2 className="text-foreground text-xl font-bold">{user.name || "Unnamed User"}</h2>
+              <div className="flex items-center gap-2">
+                {isBlocked ? (
+                  <Badge variant="destructive" className="gap-1 text-xs font-bold uppercase">
+                    <Ban className="h-3 w-3" />
+                    Blocked
                   </Badge>
-                </div>
-                <p className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
-                  <Mail className="h-3.5 w-3.5" />
-                  {user.email}
-                </p>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-xs font-bold text-emerald-600 uppercase dark:text-emerald-400"
+                  >
+                    <CheckCircle2 className="h-3 w-3" />
+                    Active Account
+                  </Badge>
+                )}
               </div>
             </div>
+            <p className="text-muted-foreground mt-0.5 text-xs">{user.email}</p>
 
-            <div className="flex items-center gap-2">
-              {user.verified ? (
-                <Badge className="gap-1 border-emerald-500/20 bg-emerald-500/10 text-xs text-emerald-600">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Verified Account
-                </Badge>
-              ) : (
-                <Badge variant="destructive" className="gap-1 text-xs">
-                  <XCircle className="h-3.5 w-3.5" />
-                  Unverified
-                </Badge>
+            <div className="text-muted-foreground mt-4 flex flex-wrap items-center justify-center gap-4 text-xs sm:justify-start">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                Joined: {new Date(user.createdAt).toLocaleDateString()}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5" />
+                Auth: <span className="capitalize">{user.provider || "Email"}</span>
+              </span>
+              {user.contact && (
+                <span className="flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5" />
+                  {user.contact}
+                </span>
               )}
             </div>
           </div>
+        </div>
 
-          <div className="border-border text-muted-foreground grid gap-3 border-t pt-4 text-xs sm:grid-cols-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="text-primary h-4 w-4" />
-              <span>
-                Joined:{" "}
-                <strong className="text-foreground">
-                  {new Date(user.createdAt).toLocaleDateString()}
-                </strong>
-              </span>
-            </div>
+        {/* Additional metadata row */}
+        <CardContent className="bg-card/50 p-4">
+          <div className="grid grid-cols-2 gap-4 text-xs">
             <div className="flex items-center gap-2">
               <Shield className="text-primary h-4 w-4" />
               <span>
@@ -181,7 +239,7 @@ export function UserDetailPanel({ userId }: UserDetailPanelProps) {
       </Card>
 
       {/* Engagement Stats Tiles */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         {statTiles.map((tile) => {
           const Icon = tile.icon;
           return (
@@ -203,6 +261,71 @@ export function UserDetailPanel({ userId }: UserDetailPanelProps) {
           );
         })}
       </div>
+
+      {/* Delete Confirmation Alert Dialog */}
+      <AlertDialog open={isDeleting} onOpenChange={setIsDeleting}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              Delete User Account Permanently
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete user &quot;{user.name || "User"}&quot; (
+              {user.email})?
+              <br />
+              <br />
+              This will permanently erase their account and all associated views, likes, and
+              comments from the platform. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteUserMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteUserMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Block / Suspend Alert Dialog */}
+      <AlertDialog open={isBlocking} onOpenChange={setIsBlocking}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-amber-600">
+              {isBlocked ? "Unblock User Account" : "Block & Suspend User"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isBlocked ? (
+                <>
+                  Are you sure you want to unblock &quot;{user.name}&quot; ({user.email})? They will
+                  regain full access to the app.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to block &quot;{user.name}&quot; ({user.email})? They will
+                  be immediately suspended from signing in or interacting on the app.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleToggleBlock}
+              disabled={toggleStatusMutation.isPending}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              {toggleStatusMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isBlocked ? "Confirm Unblock" : "Confirm Block"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -45,6 +45,7 @@ export interface IUser {
   location?: string | null;
   contact?: string | null;
   verified?: boolean;
+  provider?: string | null;
   status?: string;
   createdAt: string | Date;
   updatedAt: string | Date;
