@@ -7,6 +7,9 @@ WORKDIR /app
 # Copy entire monorepo
 COPY . .
 
+# Ensure public directory exists
+RUN mkdir -p /app/apps/web/public
+
 # Install all dependencies
 RUN npm ci --ignore-scripts
 

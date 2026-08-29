@@ -20,20 +20,14 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Copy root workspace and packages configuration
-COPY package.json package-lock.json ./
-COPY packages/ ./packages/
-COPY apps/api/package.json ./apps/api/
-COPY apps/api/prisma ./apps/api/prisma
-COPY apps/api/prisma.config.ts ./apps/api/
-
-# Install only production dependencies
-RUN npm ci --omit=dev --ignore-scripts
-
-# Copy compiled JavaScript dist & Prisma client from builder
+# Copy built artifacts and dependencies from builder
+COPY --from=builder /app/package.json /app/package-lock.json ./
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/apps/api/package.json ./apps/api/
+COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder /app/apps/api/prisma.config.ts ./apps/api/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules ./node_modules
 
 WORKDIR /app/apps/api
 
