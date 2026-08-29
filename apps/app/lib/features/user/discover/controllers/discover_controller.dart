@@ -140,50 +140,67 @@ class DiscoverController extends GetxController {
       }
     }
 
-    await filterCategory(selectedCategory.value);
+    filterCategory(selectedCategory.value);
     isLoading.value = false;
   }
 
-  Future<void> filterCategory(String category) async {
+  void filterCategory(String category) {
+    // 1. Instant (0ms) reactive selection state update
     selectedCategory.value = category;
+
+    // 2. Instant in-memory filtering from allVideos
     if (category == 'All') {
-      filteredVideos.value = allVideos;
+      filteredVideos.value = List<VideoModel>.from(allVideos);
     } else {
       final catId = categoryIdMap[category];
-      final vidRepo = videoRepository ??
-          (Get.isRegistered<VideoRepository>()
-              ? Get.find<VideoRepository>()
-              : null);
+      final target = category.trim().toLowerCase();
 
-      if (catId != null && vidRepo != null) {
-        try {
-          final catRes = await vidRepo.getVideosByCategory(catId, limit: 20);
-          if (catRes.data != null && catRes.data!.isNotEmpty) {
-            filteredVideos.value = catRes.data!
-                .map((item) => VideoModel.fromVideoItem(item))
-                .toList();
-          } else {
-            filteredVideos.value = allVideos
-                .where((v) => v.categoryName.toLowerCase() == category.toLowerCase())
-                .toList();
-          }
-        } catch (e) {
-          debugPrint('⚠️ [DiscoverController.filterCategory] Error fetching category videos: $e');
-          filteredVideos.value = allVideos
-              .where((v) => v.categoryName.toLowerCase() == category.toLowerCase())
-              .toList();
-        }
-      } else {
-        filteredVideos.value = allVideos
-            .where((v) => v.categoryName.toLowerCase() == category.toLowerCase())
-            .toList();
-      }
+      filteredVideos.value = allVideos.where((v) {
+        final nameMatch = v.categoryName.toLowerCase() == target;
+        final idMatch = catId != null && (v.categoryId == catId || v.category?.id == catId);
+        final slugMatch = v.category?.slug.toLowerCase() == target;
+        return nameMatch || idMatch || slugMatch;
+      }).toList();
     }
 
+    // 3. Update search filter
     if (searchQuery.value.isNotEmpty) {
       filterSearch(searchQuery.value);
     } else {
-      searchFilteredVideos.value = filteredVideos;
+      searchFilteredVideos.value = List<VideoModel>.from(filteredVideos);
+    }
+
+    // 4. Background API fetch for deep category list without blocking UI
+    _fetchCategoryVideosInBackground(category);
+  }
+
+  Future<void> _fetchCategoryVideosInBackground(String category) async {
+    if (category == 'All') return;
+
+    final catId = categoryIdMap[category];
+    final vidRepo = videoRepository ??
+        (Get.isRegistered<VideoRepository>()
+            ? Get.find<VideoRepository>()
+            : null);
+
+    if (catId != null && vidRepo != null) {
+      try {
+        final catRes = await vidRepo.getVideosByCategory(catId, limit: 20);
+        // Only apply if user is still on this category
+        if (selectedCategory.value == category && catRes.data != null && catRes.data!.isNotEmpty) {
+          filteredVideos.value = catRes.data!
+              .map((item) => VideoModel.fromVideoItem(item))
+              .toList();
+
+          if (searchQuery.value.isNotEmpty) {
+            filterSearch(searchQuery.value);
+          } else {
+            searchFilteredVideos.value = List<VideoModel>.from(filteredVideos);
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ [DiscoverController._fetchCategoryVideosInBackground] $e');
+      }
     }
   }
 
