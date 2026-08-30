@@ -57,13 +57,15 @@ export default function EditVideoPage() {
 
   useEffect(() => {
     if (video) {
-      setTitle(video.title);
-      setSubtitle(video.subtitle);
-      setCategoryId(video.categoryId);
+      setTitle(video.title || "");
+      setSubtitle(video.subtitle || "");
+      setCategoryId(
+        video.categoryId || video.category?.id || (categories.length > 0 ? categories[0].id : "")
+      );
       setHashtags(video.hashtags ? video.hashtags.join(", ") : "");
-      setStatus(video.status as "active" | "delete");
+      setStatus((video.status as "active" | "delete") || "active");
     }
-  }, [video]);
+  }, [video, categories]);
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -103,8 +105,19 @@ export default function EditVideoPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !subtitle.trim() || !categoryId) {
-      toast.error("Please fill in all required fields.");
+    if (!title.trim()) {
+      toast.error("Please enter a video title.");
+      return;
+    }
+
+    const selectedCategory =
+      categoryId ||
+      video?.categoryId ||
+      video?.category?.id ||
+      (categories.length > 0 ? categories[0].id : "");
+
+    if (!selectedCategory) {
+      toast.error("Please select a category.");
       return;
     }
 
@@ -118,7 +131,7 @@ export default function EditVideoPage() {
         const formData = new FormData();
         formData.append("title", title.trim());
         formData.append("subtitle", subtitle.trim());
-        formData.append("categoryId", categoryId);
+        formData.append("categoryId", selectedCategory);
         formData.append("hashtags", JSON.stringify(formattedTags));
         formData.append("status", status);
         if (newVideoFile) formData.append("video", newVideoFile);
@@ -126,15 +139,16 @@ export default function EditVideoPage() {
 
         await updateVideoMutation.mutateAsync({ id: videoId, formData });
       } else {
-        const payload = {
+        const payload: Record<string, unknown> = {
           title: title.trim(),
           subtitle: subtitle.trim(),
-          categoryId,
+          categoryId: selectedCategory,
           hashtags: formattedTags,
           status
         };
         await updateVideoMutation.mutateAsync({ id: videoId, formData: payload });
       }
+      toast.success("Video updated successfully!");
       router.push("/admin/videos");
     } catch {
       // Handled in mutation
@@ -300,13 +314,13 @@ export default function EditVideoPage() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="subtitle" className="text-xs font-semibold">
-                  Subtitle / Summary *
+                  Subtitle / Summary (Optional)
                 </Label>
                 <Input
                   id="subtitle"
                   value={subtitle}
                   onChange={(e) => setSubtitle(e.target.value)}
-                  required
+                  placeholder="Optional brief description or summary"
                 />
               </div>
 

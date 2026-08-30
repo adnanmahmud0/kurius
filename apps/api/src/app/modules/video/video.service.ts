@@ -6,7 +6,7 @@ import prisma from "../../../shared/prisma";
 
 type ICreateVideoPayload = {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   categoryId: string;
   hashtags?: string[] | string;
   videoUrl?: string;
@@ -255,7 +255,7 @@ const createVideoToDB = async (
   const video = await prisma.video.create({
     data: {
       title: payload.title,
-      subtitle: payload.subtitle,
+      subtitle: payload.subtitle || "",
       videoUrl: finalVideoUrl,
       thumbnailUrl: finalThumbnailUrl || null,
       categoryId: payload.categoryId,

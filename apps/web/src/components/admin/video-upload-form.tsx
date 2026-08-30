@@ -267,14 +267,13 @@ export function VideoUploadForm() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="subtitle" className="text-xs font-semibold">
-                Subtitle / Short Summary *
+                Subtitle / Short Summary (Optional)
               </Label>
               <Input
                 id="subtitle"
                 placeholder="e.g. Learn Turborepo and React Server Components"
                 value={subtitle}
                 onChange={(e) => setSubtitle(e.target.value)}
-                required
               />
             </div>
           </div>
