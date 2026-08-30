@@ -39,9 +39,21 @@ class UserModel {
   }
 
   String get displayAvatar {
-    if (avatar != null && avatar!.isNotEmpty) return avatar!;
-    if (image != null && image!.isNotEmpty) return image!;
-    return 'https://i.ibb.co.com/Cs5Kr1gT/dc262f1cd78130b972c5dbd8643ad972.jpg';
+    String? raw = (avatar != null && avatar!.trim().isNotEmpty)
+        ? avatar!.trim()
+        : (image != null && image!.trim().isNotEmpty ? image!.trim() : null);
+
+    if (raw == null || raw.isEmpty) {
+      return 'https://i.ibb.co.com/Cs5Kr1gT/dc262f1cd78130b972c5dbd8643ad972.jpg';
+    }
+
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      return raw;
+    }
+
+    // Relative backend path e.g. "/uploads/users/..."
+    final cleanPath = raw.startsWith('/') ? raw : '/$raw';
+    return 'https://api.kuriusapp.cloud$cleanPath';
   }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {

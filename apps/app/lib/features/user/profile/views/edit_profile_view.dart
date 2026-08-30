@@ -53,7 +53,11 @@ class EditProfileView extends GetView<ProfileController> {
                             radius: 46,
                             backgroundColor: AppColors.pillBackground,
                             backgroundImage: controller.avatarUrl.value.isNotEmpty
-                                ? NetworkImage(controller.avatarUrl.value)
+                                ? NetworkImage(
+                                    controller.avatarUrl.value.startsWith('http')
+                                        ? controller.avatarUrl.value
+                                        : 'https://api.kuriusapp.cloud${controller.avatarUrl.value.startsWith('/') ? controller.avatarUrl.value : '/${controller.avatarUrl.value}'}',
+                                  )
                                 : null,
                             child: controller.avatarUrl.value.isEmpty
                                 ? Text(
