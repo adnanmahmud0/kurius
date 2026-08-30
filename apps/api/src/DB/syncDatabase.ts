@@ -48,6 +48,43 @@ export async function syncDatabaseSchema(): Promise<void> {
       CREATE INDEX IF NOT EXISTS "MotivationalMessage_status_idx" ON "MotivationalMessage"("status");
     `);
 
+    // 4. Ensure User security columns exist
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "authOneTimeCodeAttempts" INTEGER DEFAULT 0;`
+    );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "authLockUntil" TIMESTAMP(3);`
+    );
+
+    // 5. Ensure Performance Indexes exist
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "User_role_status_idx" ON "User"("role", "status");`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "User_createdAt_idx" ON "User"("createdAt");`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "Video_status_createdAt_idx" ON "Video"("status", "createdAt");`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "Video_categoryId_status_idx" ON "Video"("categoryId", "status");`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "Video_createdBy_idx" ON "Video"("createdBy");`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "VideoView_userId_videoId_viewedAt_idx" ON "VideoView"("userId", "videoId", "viewedAt");`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "VideoView_viewedAt_idx" ON "VideoView"("viewedAt");`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "Comment_videoId_status_createdAt_idx" ON "Comment"("videoId", "status", "createdAt");`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "Comment_userId_idx" ON "Comment"("userId");`
+    );
+
     logger.info(colors.green("✅ Database schema synchronized"));
   } catch (error) {
     logger.warn(colors.yellow(`⚠️ Schema sync warning: ${(error as Error).message}`));

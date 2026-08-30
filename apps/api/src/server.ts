@@ -41,10 +41,18 @@ async function main() {
     });
 
     //socket
+    const { isOriginAllowed } = await import("./app/logging/cors");
     const io = new Server(server, {
       pingTimeout: 60000,
       cors: {
-        origin: "*"
+        origin: (origin, callback) => {
+          if (isOriginAllowed(origin)) {
+            callback(null, true);
+          } else {
+            callback(new Error("Not allowed by CORS"));
+          }
+        },
+        credentials: true
       }
     });
     socketHelper.socket(io);

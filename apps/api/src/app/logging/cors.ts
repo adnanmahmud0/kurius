@@ -7,36 +7,35 @@ export const allowedOrigins: string[] = [
   "https://admin.kuriusapp.cloud",
   "https://api.kuriusapp.cloud",
   "https://kuriusapp.cloud",
-  "https://www.kuriusapp.cloud",
-  "http://admin.kuriusapp.cloud",
-  "http://api.kuriusapp.cloud",
-  "http://kuriusapp.cloud",
-  "http://www.kuriusapp.cloud"
+  "https://www.kuriusapp.cloud"
 ];
 
 export const isOriginAllowed = (origin?: string): boolean => {
   if (!origin) return true; // allow non-browser clients (Postman/mobile/server-to-server)
   if (allowedOrigins.includes(origin)) return true;
 
-  // Allow any subdomain of kuriusapp.cloud (both https and http)
+  // In production, enforce HTTPS for kuriusapp.cloud domains
   if (
-    origin.endsWith(".kuriusapp.cloud") ||
-    origin.includes("://admin.kuriusapp.cloud") ||
-    origin.includes("://api.kuriusapp.cloud") ||
-    origin.includes("://kuriusapp.cloud")
+    origin.startsWith("https://") &&
+    (origin.endsWith(".kuriusapp.cloud") ||
+      origin.includes("admin.kuriusapp.cloud") ||
+      origin.includes("api.kuriusapp.cloud") ||
+      origin.includes("kuriusapp.cloud"))
   ) {
     return true;
   }
 
-  // Allow local network origins in development (10.x.x.x, 192.168.x.x, 172.x.x.x)
-  if (process.env.NODE_ENV === "development") {
+  // Allow local network origins in development (10.x.x.x, 192.168.x.x, 172.x.x.x, localhost)
+  if (process.env.NODE_ENV !== "production") {
     if (
       origin.startsWith("http://10.") ||
       origin.startsWith("https://10.") ||
       origin.startsWith("http://192.168.") ||
       origin.startsWith("https://192.168.") ||
       origin.startsWith("http://172.") ||
-      origin.startsWith("https://172.")
+      origin.startsWith("https://172.") ||
+      origin.startsWith("http://localhost:") ||
+      origin.startsWith("http://127.0.0.1:")
     ) {
       return true;
     }

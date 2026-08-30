@@ -44,6 +44,8 @@ model User {
   authIsResetPassword Boolean? @default(false)
   authOneTimeCode     Int?
   authExpireAt        DateTime?
+  authOneTimeCodeAttempts Int? @default(0)
+  authLockUntil       DateTime?
 
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
@@ -53,6 +55,9 @@ model User {
   views          VideoView[]
   likes          VideoLike[]
   comments       Comment[]
+
+  @@index([role, status])
+  @@index([createdAt])
 }
 
 model ResetToken {
@@ -97,7 +102,9 @@ model Video {
   comments     Comment[]
 
   @@index([categoryId])
-  @@index([status])
+  @@index([status, createdAt])
+  @@index([categoryId, status])
+  @@index([createdBy])
 }
 
 model VideoView {
@@ -110,6 +117,8 @@ model VideoView {
 
   @@index([videoId])
   @@index([userId, videoId])
+  @@index([userId, videoId, viewedAt])
+  @@index([viewedAt])
 }
 
 model VideoLike {
@@ -135,6 +144,8 @@ model Comment {
   video       Video    @relation(fields: [videoId], references: [id])
 
   @@index([videoId])
+  @@index([videoId, status, createdAt])
+  @@index([userId])
 }
 
 model StorageSetting {

@@ -51,37 +51,40 @@ const getAllUsersToDB = async (query: Record<string, unknown>) => {
     orderBy = { createdAt: "desc" };
   }
 
-  const result = await prisma.user.findMany({
-    where,
-    skip,
-    take: limitNumber,
-    orderBy,
-    select: {
-      id: true,
-      name: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      role: true,
-      contact: true,
-      location: true,
-      image: true,
-      avatar: true,
-      status: true,
-      verified: true,
-      provider: true,
-      createdAt: true,
-      updatedAt: true,
-      _count: {
-        select: {
-          videos: true,
-          views: true,
-          likes: true,
-          comments: true
+  const [result, total] = await prisma.$transaction([
+    prisma.user.findMany({
+      where,
+      skip,
+      take: limitNumber,
+      orderBy,
+      select: {
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        contact: true,
+        location: true,
+        image: true,
+        avatar: true,
+        status: true,
+        verified: true,
+        provider: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            videos: true,
+            views: true,
+            likes: true,
+            comments: true
+          }
         }
       }
-    }
-  });
+    }),
+    prisma.user.count({ where })
+  ]);
 
   const formattedResult = result.map((u: any) => ({
     ...u,
@@ -95,7 +98,6 @@ const getAllUsersToDB = async (query: Record<string, unknown>) => {
     }
   }));
 
-  const total = await prisma.user.count({ where });
   const totalPage = Math.ceil(total / limitNumber);
 
   return {
@@ -284,6 +286,9 @@ const deleteAccountFromDB = async (user: JwtPayload) => {
     unlinkFile(isExistUser.image);
   }
 
+  const { invalidateUserAuthCache } = await import("../../middlewares/auth");
+  invalidateUserAuthCache(id);
+
   const deleteDoc = await prisma.user.delete({ where: { id } });
   return deleteDoc;
 };
@@ -302,6 +307,9 @@ const deleteUserByAdminFromDB = async (id: string) => {
   if (isExistUser.image) {
     unlinkFile(isExistUser.image);
   }
+
+  const { invalidateUserAuthCache } = await import("../../middlewares/auth");
+  invalidateUserAuthCache(id);
 
   // Delete all user references (views, likes, comments, reset tokens) and the user record
   await prisma.$transaction([
@@ -327,6 +335,9 @@ const toggleUserStatusByAdminFromDB = async (id: string, status?: "active" | "de
   }
 
   const nextStatus = status || (isExistUser.status === "active" ? "delete" : "active");
+
+  const { invalidateUserAuthCache } = await import("../../middlewares/auth");
+  invalidateUserAuthCache(id);
 
   const updated = await prisma.user.update({
     where: { id },

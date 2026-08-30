@@ -82,6 +82,10 @@ const updateStorageSettingInDB = async (payload: IStorageSettingUpdate) => {
     });
   }
 
+  // Invalidate cached storage provider
+  const { StorageAdapter } = await import("../../../helpers/storageAdapter");
+  StorageAdapter.clearStorageSettingCache();
+
   return {
     id: updated.id,
     provider: updated.provider,

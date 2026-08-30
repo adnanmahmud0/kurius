@@ -7,6 +7,15 @@ import ApiError from "../../errors/ApiError";
 import { jwtHelper } from "../../helpers/jwtHelper";
 import prisma from "../../shared/prisma";
 
+// Lightweight in-memory cache for user status checks (30s TTL)
+type CachedUserStatus = { status: string; role: string; timestamp: number };
+const userAuthCache = new Map<string, CachedUserStatus>();
+const AUTH_CACHE_TTL = 30 * 1000; // 30 seconds
+
+export const invalidateUserAuthCache = (userId: string) => {
+  userAuthCache.delete(userId);
+};
+
 const auth =
   (...roles: string[]) =>
   async (req: Request, res: Response, next: NextFunction) => {
@@ -21,17 +30,34 @@ const auth =
       //verify token
       const verifyUser = jwtHelper.verifyToken(token, config.jwt.jwt_secret as Secret);
 
-      // Check user existence and active status in real-time
-      const activeUser = await prisma.user.findUnique({
-        where: { id: verifyUser.id },
-        select: { id: true, status: true, role: true }
-      });
+      // Check user existence and active status with 30s cache
+      const now = Date.now();
+      const cached = userAuthCache.get(verifyUser.id);
+      let userStatus: { id: string; status: string; role: string } | null = null;
 
-      if (!activeUser) {
+      if (cached && now - cached.timestamp < AUTH_CACHE_TTL) {
+        userStatus = { id: verifyUser.id, status: cached.status, role: cached.role };
+      } else {
+        const activeUser = await prisma.user.findUnique({
+          where: { id: verifyUser.id },
+          select: { id: true, status: true, role: true }
+        });
+
+        if (activeUser) {
+          userAuthCache.set(verifyUser.id, {
+            status: activeUser.status,
+            role: activeUser.role,
+            timestamp: now
+          });
+          userStatus = activeUser;
+        }
+      }
+
+      if (!userStatus) {
         throw new ApiError(StatusCodes.UNAUTHORIZED, "Account no longer exists");
       }
 
-      if (activeUser.status === "delete") {
+      if (userStatus.status === "delete") {
         throw new ApiError(
           StatusCodes.FORBIDDEN,
           "Your account has been suspended/blocked. Please contact support."
@@ -42,7 +68,7 @@ const auth =
       req.user = verifyUser;
 
       //guard user role
-      if (roles.length && !roles.includes(activeUser.role)) {
+      if (roles.length && !roles.includes(userStatus.role)) {
         throw new ApiError(StatusCodes.FORBIDDEN, "You don't have permission to access this api");
       }
 

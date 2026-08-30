@@ -22,6 +22,29 @@ const ensureDir = (dirPath: string) => {
   }
 };
 
+let cachedStorageProvider: "local" | "cloudinary" = "local";
+let lastStorageSettingFetch = 0;
+const STORAGE_SETTING_CACHE_TTL = 60 * 1000; // 60 seconds
+
+export const clearStorageSettingCache = () => {
+  lastStorageSettingFetch = 0;
+};
+
+const getActiveStorageProvider = async (): Promise<"local" | "cloudinary"> => {
+  const now = Date.now();
+  if (now - lastStorageSettingFetch < STORAGE_SETTING_CACHE_TTL) {
+    return cachedStorageProvider;
+  }
+  try {
+    const setting = await prisma.storageSetting.findFirst();
+    cachedStorageProvider = setting?.provider === "cloudinary" ? "cloudinary" : "local";
+    lastStorageSettingFetch = now;
+  } catch {
+    cachedStorageProvider = "local";
+  }
+  return cachedStorageProvider;
+};
+
 /**
  * Dynamic Storage Adapter:
  * Uploads a file buffer or disk file to either Local Storage or Cloudinary
@@ -31,16 +54,8 @@ export const uploadFile = async (
   file: Express.Multer.File,
   folder = "videos"
 ): Promise<UploadResult> => {
-  // Check active storage setting from database
-  let provider = "local";
-  try {
-    const setting = await prisma.storageSetting.findFirst();
-    if (setting?.provider === "cloudinary") {
-      provider = "cloudinary";
-    }
-  } catch {
-    provider = "local";
-  }
+  // Check active storage setting from cache/database
+  const provider = await getActiveStorageProvider();
 
   // 1. Cloudinary upload
   if (provider === "cloudinary") {
@@ -150,5 +165,6 @@ export const deleteFile = async (publicId: string, storageType = "local"): Promi
 export const StorageAdapter = {
   uploadFile,
   deleteFile,
-  formatFileUrl
+  formatFileUrl,
+  clearStorageSettingCache
 };

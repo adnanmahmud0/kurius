@@ -1,13 +1,17 @@
 import path from "path";
 
+import compression from "compression";
 import cors from "cors";
 import express, { Request, Response } from "express";
 import session from "express-session";
+import helmet from "helmet";
 import { StatusCodes } from "http-status-codes";
 import passport from "passport";
 
 import { isOriginAllowed } from "./app/logging/cors";
 import globalErrorHandler from "./app/middlewares/globalErrorHandler";
+import { generalApiLimiter } from "./app/middlewares/rateLimiter";
+import { sanitizeInputs } from "./app/middlewares/sanitize";
 import config from "./config";
 import { initializePassport } from "./config/passport";
 import { DocsRoutes } from "./docs/docs.router";
@@ -15,6 +19,21 @@ import router from "./routes";
 import { Morgan } from "./shared/morgen";
 
 const app = express();
+
+// Trust reverse proxy (Nginx) for accurate IP resolution in rate limiters
+app.set("trust proxy", 1);
+
+// HTTP Security Headers
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // APIs return JSON; media/avatars loaded across origins
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginEmbedderPolicy: false
+  })
+);
+
+// Gzip Compression for fast responses
+app.use(compression());
 
 //morgan
 app.use(Morgan.successHandler);
@@ -34,8 +53,11 @@ app.use(
     credentials: true
   })
 );
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+// XSS Sanitization for text inputs
+app.use(sanitizeInputs);
 
 //session configuration for OAuth
 app.use(
@@ -56,7 +78,7 @@ initializePassport();
 app.use(passport.initialize());
 app.use(passport.session());
 
-//file retrieve & streaming
+//file retrieve & streaming with caching headers
 const uploadsPath = path.join(process.cwd(), "uploads");
 app.use(
   "/uploads",
@@ -64,6 +86,7 @@ app.use(
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400"); // 7 days cache
     if (req.method === "OPTIONS") {
       return res.sendStatus(200);
     }
@@ -79,6 +102,18 @@ app.use(
   })
 );
 app.use(express.static("uploads"));
+
+// Health check endpoint (ultra-fast, zero-DB query for Docker/Nginx/Uptime monitors)
+app.get(["/api/health", "/api/v1/health", "/health"], (_req: Request, res: Response) => {
+  res.status(StatusCodes.OK).json({
+    status: "ok",
+    uptime: `${Math.floor(process.uptime())}s`,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// General API Rate Limiting
+app.use("/api", generalApiLimiter);
 
 //api documentation
 app.use("/api", DocsRoutes);

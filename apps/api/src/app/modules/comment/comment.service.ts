@@ -1,6 +1,7 @@
 import { StatusCodes } from "http-status-codes";
 
 import ApiError from "../../../errors/ApiError";
+import { StorageAdapter } from "../../../helpers/storageAdapter";
 import prisma from "../../../shared/prisma";
 
 // Create comment on video
@@ -10,7 +11,7 @@ const createCommentToDB = async (userId: string, videoId: string, commentText: s
     throw new ApiError(StatusCodes.NOT_FOUND, "Video not found!");
   }
 
-  const comment = await prisma.comment.create({
+  const comment: any = await prisma.comment.create({
     data: {
       userId,
       videoId,
@@ -22,13 +23,23 @@ const createCommentToDB = async (userId: string, videoId: string, commentText: s
         select: {
           id: true,
           name: true,
-          avatar: true
+          avatar: true,
+          image: true
         }
       }
     }
   });
 
-  return comment;
+  return {
+    ...comment,
+    user: comment.user
+      ? {
+          ...comment.user,
+          avatar: StorageAdapter.formatFileUrl(comment.user.avatar || comment.user.image),
+          image: StorageAdapter.formatFileUrl(comment.user.image)
+        }
+      : comment.user
+  };
 };
 
 // Get cursor-paginated comments for a video
@@ -53,7 +64,8 @@ const getVideoCommentsFromDB = async (
         select: {
           id: true,
           name: true,
-          avatar: true
+          avatar: true,
+          image: true
         }
       }
     }
@@ -72,8 +84,19 @@ const getVideoCommentsFromDB = async (
     nextCursor = nextItem ? nextItem.id : null;
   }
 
+  const formattedItems = items.map((c: any) => ({
+    ...c,
+    user: c.user
+      ? {
+          ...c.user,
+          avatar: StorageAdapter.formatFileUrl(c.user.avatar || c.user.image),
+          image: StorageAdapter.formatFileUrl(c.user.image)
+        }
+      : c.user
+  }));
+
   return {
-    data: items,
+    data: formattedItems,
     meta: {
       limit,
       nextCursor,

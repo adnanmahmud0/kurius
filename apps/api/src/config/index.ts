@@ -58,6 +58,9 @@ export default {
         process.env.GOOGLE_OAUTH_CALLBACK_URL ||
         "http://localhost:5000/api/v1/oauth/google/callback"
     },
-    sessionSecret: process.env.SESSION_SECRET || "your_session_secret_key"
+    sessionSecret:
+      process.env.SESSION_SECRET ||
+      process.env.JWT_SECRET ||
+      "kurius_secure_default_session_secret_key_prod_auth"
   }
 };
