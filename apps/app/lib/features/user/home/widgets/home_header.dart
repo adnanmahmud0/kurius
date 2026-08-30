@@ -70,16 +70,25 @@ class HomeHeader extends StatelessWidget {
                     child: CircleAvatar(
                       radius: 22,
                       backgroundColor: AppColors.pillBackground,
-                      child: Text(
-                        authController.userName.value.isNotEmpty
-                            ? authController.userName.value[0].toUpperCase()
-                            : 'U',
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
+                      backgroundImage: authController.avatarUrl.value.isNotEmpty
+                          ? NetworkImage(
+                              authController.avatarUrl.value.startsWith('http')
+                                  ? authController.avatarUrl.value
+                                  : 'https://api.kuriusapp.cloud${authController.avatarUrl.value.startsWith('/') ? authController.avatarUrl.value : '/${authController.avatarUrl.value}'}',
+                            )
+                          : null,
+                      child: authController.avatarUrl.value.isEmpty
+                          ? Text(
+                              authController.userName.value.isNotEmpty
+                                  ? authController.userName.value[0].toUpperCase()
+                                  : 'U',
+                              style: GoogleFonts.outfit(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            )
+                          : null,
                     ),
                   ),
                 )

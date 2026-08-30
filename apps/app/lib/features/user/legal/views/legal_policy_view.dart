@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../shared/widgets/custom_logo_loader.dart';
 import '../controllers/legal_policy_controller.dart';
 
 class LegalPolicyView extends GetView<LegalPolicyController> {
@@ -40,11 +41,9 @@ class LegalPolicyView extends GetView<LegalPolicyController> {
         child: Obx(() {
           // Loading State
           if (controller.isLoading.value && controller.policy.value == null) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-                strokeWidth: 3,
-              ),
+            return const CustomLogoLoader(
+              size: 72,
+              text: 'loading.....!',
             );
           }
 
