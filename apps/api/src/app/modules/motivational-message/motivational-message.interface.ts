@@ -1,15 +1,15 @@
-export interface IMotivationalMessageFilters {
+export type IMotivationalMessageFilters = {
   search?: string;
   status?: "active" | "delete";
-}
+};
 
-export interface ICreateMotivationalMessagePayload {
+export type ICreateMotivationalMessagePayload = {
   message: string;
   author?: string | null;
-}
+};
 
-export interface IUpdateMotivationalMessagePayload {
+export type IUpdateMotivationalMessagePayload = {
   message?: string;
   author?: string | null;
   status?: "active" | "delete";
-}
+};

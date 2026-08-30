@@ -1,16 +1,15 @@
 import { v2 as cloudinary, UploadApiResponse } from "cloudinary";
 import { StatusCodes } from "http-status-codes";
 
-import config from "../config";
 import ApiError from "../errors/ApiError";
 import { errorLogger, logger } from "../shared/logger";
 import prisma from "../shared/prisma";
 
-export interface CloudinaryConfigOptions {
+export type CloudinaryConfigOptions = {
   cloudName?: string | null;
   apiKey?: string | null;
   apiSecret?: string | null;
-}
+};
 
 /**
  * Configure Cloudinary instance dynamically from DB or env fallback

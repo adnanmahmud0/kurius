@@ -4,16 +4,16 @@ import ApiError from "../../../errors/ApiError";
 import { StorageAdapter } from "../../../helpers/storageAdapter";
 import prisma from "../../../shared/prisma";
 
-interface ICreateVideoPayload {
+type ICreateVideoPayload = {
   title: string;
   subtitle: string;
   categoryId: string;
   hashtags?: string[] | string;
   videoUrl?: string;
   thumbnailUrl?: string;
-}
+};
 
-interface IUpdateVideoPayload {
+type IUpdateVideoPayload = {
   title?: string;
   subtitle?: string;
   categoryId?: string;
@@ -21,7 +21,7 @@ interface IUpdateVideoPayload {
   status?: "active" | "delete";
   videoUrl?: string;
   thumbnailUrl?: string;
-}
+};
 
 const parseHashtags = (input: unknown): string[] => {
   if (!input) return [];

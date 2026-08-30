@@ -4,18 +4,18 @@ import ApiError from "../../../errors/ApiError";
 import { CloudinaryHelper } from "../../../helpers/cloudinaryHelper";
 import prisma from "../../../shared/prisma";
 
-interface IStorageSettingUpdate {
+type IStorageSettingUpdate = {
   provider: "local" | "cloudinary";
   cloudName?: string | null;
   apiKey?: string | null;
   apiSecret?: string | null;
-}
+};
 
-interface IStorageSettingTest {
+type IStorageSettingTest = {
   cloudName: string;
   apiKey: string;
   apiSecret: string;
-}
+};
 
 const getStorageSettingFromDB = async () => {
   let setting = await prisma.storageSetting.findFirst();

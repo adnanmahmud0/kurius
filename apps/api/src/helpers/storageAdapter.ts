@@ -3,16 +3,15 @@ import path from "path";
 
 import { v4 as uuidv4 } from "uuid";
 
-import config from "../config";
 import { errorLogger, logger } from "../shared/logger";
 import prisma from "../shared/prisma";
 import { CloudinaryHelper } from "./cloudinaryHelper";
 
-export interface UploadResult {
+export type UploadResult = {
   url: string;
   publicId?: string;
   storageType: "local" | "cloudinary";
-}
+};
 
 /**
  * Ensures a directory exists
