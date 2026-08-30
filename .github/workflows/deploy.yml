@@ -216,7 +216,9 @@ jobs:
             echo " [4/7] Start containers with pre-built images"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-            GH_REPOSITORY_OWNER="$GH_OWNER_LOWER" docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            # Remove any orphan/standalone container naming conflicts
+            docker rm -f kurius_prod_web kurius_prod_api 2>/dev/null || true
+            GH_REPOSITORY_OWNER="$GH_OWNER_LOWER" docker compose -f docker-compose.prod.yml up -d --remove-orphans --force-recreate
             echo "✓ Containers started"
 
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
