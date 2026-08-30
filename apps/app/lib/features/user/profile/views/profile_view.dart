@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../app/routes/app_routes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../shared/widgets/user_bottom_nav.dart';
+import '../../../../app/routes/app_routes.dart';
 import '../../legal/bindings/legal_policy_binding.dart';
 import '../../legal/views/legal_policy_view.dart';
 import '../controllers/profile_controller.dart';
@@ -31,6 +31,34 @@ class ProfileView extends GetView<ProfileController> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => Get.back(),
         ),
+        actions: [
+          Obx(() {
+            if (!auth.isLoggedIn.value) return const SizedBox.shrink();
+            return TextButton.icon(
+              onPressed: controller.toggleEditProfile,
+              icon: Icon(
+                controller.isEditingProfile.value
+                    ? Icons.close_rounded
+                    : Icons.edit_outlined,
+                size: 18,
+                color: controller.isEditingProfile.value
+                    ? AppColors.error
+                    : AppColors.primary,
+              ),
+              label: Text(
+                controller.isEditingProfile.value ? 'Cancel' : 'Edit',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: controller.isEditingProfile.value
+                      ? AppColors.error
+                      : AppColors.primary,
+                ),
+              ),
+            );
+          }),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -324,10 +352,13 @@ class ProfileView extends GetView<ProfileController> {
                   // Full Name
                   _buildFieldLabel('Full Name'),
                   const SizedBox(height: 6),
-                  _buildTextField(
-                    controller: controller.nameController,
-                    hint: 'Enter your full name',
-                    prefixIcon: Icons.person_outline_rounded,
+                  Obx(
+                    () => _buildTextField(
+                      controller: controller.nameController,
+                      hint: 'Enter your full name',
+                      prefixIcon: Icons.person_outline_rounded,
+                      enabled: controller.isEditingProfile.value,
+                    ),
                   ),
 
                   const SizedBox(height: 16),
@@ -368,11 +399,14 @@ class ProfileView extends GetView<ProfileController> {
                   // Contact Number
                   _buildFieldLabel('Contact Number'),
                   const SizedBox(height: 6),
-                  _buildTextField(
-                    controller: controller.contactController,
-                    hint: 'e.g. +1 555-0199',
-                    prefixIcon: Icons.phone_outlined,
-                    keyboardType: TextInputType.phone,
+                  Obx(
+                    () => _buildTextField(
+                      controller: controller.contactController,
+                      hint: 'e.g. +1 555-0199',
+                      prefixIcon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                      enabled: controller.isEditingProfile.value,
+                    ),
                   ),
 
                   const SizedBox(height: 16),
@@ -380,48 +414,98 @@ class ProfileView extends GetView<ProfileController> {
                   // Location
                   _buildFieldLabel('Location'),
                   const SizedBox(height: 6),
-                  _buildTextField(
-                    controller: controller.locationController,
-                    hint: 'e.g. New York, USA',
-                    prefixIcon: Icons.location_on_outlined,
+                  Obx(
+                    () => _buildTextField(
+                      controller: controller.locationController,
+                      hint: 'e.g. New York, USA',
+                      prefixIcon: Icons.location_on_outlined,
+                      enabled: controller.isEditingProfile.value,
+                    ),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // Save Profile Changes Button
-                  Obx(() => SizedBox(
+                  // Edit Profile Toggle / Save Changes Action Buttons
+                  Obx(() {
+                    if (!controller.isEditingProfile.value) {
+                      return SizedBox(
                         width: double.infinity,
                         height: 50,
-                        child: ElevatedButton(
-                          onPressed: controller.isUpdating.value
-                              ? null
-                              : controller.saveProfileEdits,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
+                        child: OutlinedButton.icon(
+                          onPressed: controller.startEditProfile,
+                          icon: const Icon(Icons.edit_outlined, color: AppColors.primary, size: 20),
+                          label: Text(
+                            'Edit Profile',
+                            style: GoogleFonts.outfit(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.primary, width: 1.5),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
-                            elevation: 2,
                           ),
-                          child: controller.isUpdating.value
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(
-                                  'Save Changes',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
                         ),
-                      )),
+                      );
+                    }
+
+                    return Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: controller.isUpdating.value
+                                ? null
+                                : controller.saveProfileEdits,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              elevation: 2,
+                            ),
+                            child: controller.isUpdating.value
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    'Save Changes',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: TextButton(
+                            onPressed: controller.cancelEditProfile,
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
 
                   const SizedBox(height: 20),
 
@@ -583,21 +667,33 @@ class ProfileView extends GetView<ProfileController> {
     required String hint,
     required IconData prefixIcon,
     TextInputType keyboardType = TextInputType.text,
+    bool enabled = true,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: enabled ? Colors.white : AppColors.cardBackground,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(
+          color: enabled ? AppColors.primary : AppColors.cardBorder,
+          width: enabled ? 1.2 : 1.0,
+        ),
       ),
       child: TextField(
         controller: controller,
+        enabled: enabled,
         keyboardType: keyboardType,
-        style: GoogleFonts.outfit(fontSize: 15, color: AppColors.textPrimary),
+        style: GoogleFonts.outfit(
+          fontSize: 15,
+          color: enabled ? AppColors.textPrimary : AppColors.textSecondary,
+        ),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: GoogleFonts.outfit(fontSize: 14, color: AppColors.textMuted),
-          prefixIcon: Icon(prefixIcon, color: AppColors.textSecondary, size: 20),
+          prefixIcon: Icon(
+            prefixIcon,
+            color: enabled ? AppColors.primary : AppColors.textSecondary,
+            size: 20,
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),

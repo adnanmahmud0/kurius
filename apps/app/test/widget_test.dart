@@ -95,7 +95,13 @@ void main() {
     profileController.toggleDeletePasswordVisibility();
     expect(profileController.obscureDeletePassword.value, isFalse);
 
-    // Test Edit Profile status messages
+    // Test Edit Profile status messages and edit mode toggle
+    expect(profileController.isEditingProfile.value, isFalse);
+    profileController.startEditProfile();
+    expect(profileController.isEditingProfile.value, isTrue);
+    profileController.cancelEditProfile();
+    expect(profileController.isEditingProfile.value, isFalse);
+
     profileController.editProfileSuccessMessage.value = 'Profile updated successfully';
     expect(profileController.editProfileSuccessMessage.value, isNotEmpty);
     profileController.dismissEditProfileMessage();

@@ -26,6 +26,7 @@ class ProfileController extends GetxController {
   // State
   final RxBool isLoading = false.obs;
   final RxBool isUpdating = false.obs;
+  final RxBool isEditingProfile = false.obs;
   final RxBool isVerifyingPassword = false.obs;
   final RxBool isDeletingAccount = false.obs;
   final RxString errorMessage = ''.obs;
@@ -119,6 +120,34 @@ class ProfileController extends GetxController {
       errorMessage.value = ErrorHandler.getErrorMessage(e);
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Edit Profile Mode Controls
+  // ---------------------------------------------------------------------------
+
+  void startEditProfile() {
+    isEditingProfile.value = true;
+    dismissEditProfileMessage();
+  }
+
+  void cancelEditProfile() {
+    isEditingProfile.value = false;
+    final user = userProfile.value;
+    if (user != null) {
+      nameController.text = user.name;
+      contactController.text = user.contact ?? '';
+      locationController.text = user.location ?? '';
+    }
+    dismissEditProfileMessage();
+  }
+
+  void toggleEditProfile() {
+    if (isEditingProfile.value) {
+      cancelEditProfile();
+    } else {
+      startEditProfile();
     }
   }
 
@@ -218,6 +247,8 @@ class ProfileController extends GetxController {
               : 'Profile updated successfully';
 
           editProfileSuccessMessage.value = msg;
+          isEditingProfile.value = false;
+
           ErrorHandler.showSuccessSnackbar(
             msg,
             title: 'Profile Saved',
