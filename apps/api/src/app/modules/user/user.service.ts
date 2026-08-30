@@ -7,6 +7,7 @@ import config from "../../../config";
 import { USER_ROLES } from "../../../enums/user";
 import ApiError from "../../../errors/ApiError";
 import { emailHelper } from "../../../helpers/emailHelper";
+import { formatFileUrl } from "../../../helpers/storageAdapter";
 import { emailTemplate } from "../../../shared/emailTemplate";
 import prisma from "../../../shared/prisma";
 import unlinkFile from "../../../shared/unlinkFile";
@@ -84,6 +85,8 @@ const getAllUsersToDB = async (query: Record<string, unknown>) => {
 
   const formattedResult = result.map((u: any) => ({
     ...u,
+    image: formatFileUrl(u.image),
+    avatar: formatFileUrl(u.avatar || u.image),
     stats: {
       videosCreated: u._count?.videos || 0,
       viewsCount: u._count?.views || 0,
@@ -143,6 +146,8 @@ const getUserByIdFromDB = async (id: string) => {
   const { _count, ...rest } = user;
   return {
     ...rest,
+    image: formatFileUrl(rest.image),
+    avatar: formatFileUrl(rest.avatar || rest.image),
     stats: {
       videosCreated: _count?.videos || 0,
       viewsCount: _count?.views || 0,
@@ -221,6 +226,8 @@ const getUserProfileFromDB = async (user: JwtPayload) => {
   const { _count, ...rest } = isExistUser;
   return {
     ...rest,
+    image: formatFileUrl(rest.image),
+    avatar: formatFileUrl(rest.avatar || rest.image),
     stats: {
       videosCreated: _count?.videos || 0,
       viewsCount: _count?.views || 0,

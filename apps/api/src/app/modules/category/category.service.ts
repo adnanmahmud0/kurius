@@ -52,7 +52,10 @@ const getAllCategoriesFromDB = async () => {
     }
   });
 
-  return categories;
+  return categories.map((cat: any) => ({
+    ...cat,
+    thumbnail: StorageAdapter.formatFileUrl(cat.thumbnail)
+  }));
 };
 
 // Get admin categories with pagination and search
@@ -96,7 +99,10 @@ const getAdminCategoriesFromDB = async (query: {
       total,
       totalPage: Math.ceil(total / limit)
     },
-    data: categories
+    data: categories.map((cat: any) => ({
+      ...cat,
+      thumbnail: StorageAdapter.formatFileUrl(cat.thumbnail)
+    }))
   };
 };
 
@@ -117,7 +123,10 @@ const getCategoryByIdFromDB = async (idOrSlug: string) => {
     throw new ApiError(StatusCodes.NOT_FOUND, "Category not found!");
   }
 
-  return category;
+  return {
+    ...category,
+    thumbnail: StorageAdapter.formatFileUrl(category.thumbnail)
+  };
 };
 
 // Update category (Admin)

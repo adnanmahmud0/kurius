@@ -92,13 +92,32 @@ export const uploadFile = async (
   }
 
   const relativeUrl = `/uploads/${folder}/${filename}`;
-  logger.info(`File saved locally: ${relativeUrl}`);
+  const fullUrl = formatFileUrl(relativeUrl);
+  logger.info(`File saved locally: ${relativeUrl} -> ${fullUrl}`);
 
   return {
-    url: relativeUrl,
+    url: fullUrl || relativeUrl,
     publicId: `${folder}/${filename}`,
     storageType: "local"
   };
+};
+
+/**
+ * Resolves a stored file path to a fully-qualified public HTTP/HTTPS URL
+ */
+export const formatFileUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  const apiBase =
+    process.env.API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.SERVER_URL ||
+    "https://api.kuriusapp.cloud";
+  const cleanBase = apiBase.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
+  const cleanPath = url.startsWith("/") ? url : `/${url}`;
+  return `${cleanBase}${cleanPath}`;
 };
 
 /**
@@ -131,5 +150,6 @@ export const deleteFile = async (publicId: string, storageType = "local"): Promi
 
 export const StorageAdapter = {
   uploadFile,
-  deleteFile
+  deleteFile,
+  formatFileUrl
 };
