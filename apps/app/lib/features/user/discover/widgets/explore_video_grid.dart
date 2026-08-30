@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../shared/widgets/custom_logo_loader.dart';
 import '../../video_scroll/models/video_model.dart';
 import '../controllers/discover_controller.dart';
 
@@ -13,10 +14,11 @@ class ExploreVideoGrid extends GetView<DiscoverController> {
   Widget build(BuildContext context) {
     return Obx(() {
       if (controller.isLoading.value && controller.filteredVideos.isEmpty) {
-        return const Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 60),
-            child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary),
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 60),
+          child: CustomLogoLoader(
+            size: 72,
+            text: 'loading.....!',
           ),
         );
       }

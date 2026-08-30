@@ -62,6 +62,7 @@ class AuthController extends GetxController {
   final RxString userName = ''.obs;
   final RxString userEmail = ''.obs;
   final RxString userHandle = ''.obs;
+  final RxString avatarUrl = ''.obs;
 
   @override
   void onInit() {
@@ -78,6 +79,17 @@ class AuthController extends GetxController {
         userName.value = cachedUser['name'] as String? ?? '';
         userEmail.value = cachedUser['email'] as String? ?? '';
         userHandle.value = userEmail.value.isNotEmpty ? '@${userEmail.value.split('@').first}' : '';
+
+        final rawAvatar = (cachedUser['avatar'] as String?) ?? (cachedUser['image'] as String?);
+        if (rawAvatar != null && rawAvatar.trim().isNotEmpty) {
+          final trimmed = rawAvatar.trim();
+          if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+            avatarUrl.value = trimmed;
+          } else {
+            final clean = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+            avatarUrl.value = 'https://api.kuriusapp.cloud$clean';
+          }
+        }
       }
     }
   }

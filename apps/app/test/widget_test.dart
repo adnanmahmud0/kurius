@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:kurius/core/constants/api_endpoints.dart';
@@ -18,6 +19,7 @@ import 'package:kurius/features/user/legal/controllers/legal_policy_controller.d
 import 'package:kurius/features/user/profile/controllers/profile_controller.dart';
 import 'package:kurius/features/user/video_scroll/controllers/video_scroll_controller.dart';
 import 'package:kurius/features/user/video_scroll/models/video_model.dart';
+import 'package:kurius/shared/widgets/custom_logo_loader.dart';
 import 'package:kurius/main.dart';
 
 void main() {
@@ -404,5 +406,20 @@ void main() {
     final user = UserModel.fromJson(userImageJson);
     expect(user.id, "u-img-123");
     expect(user.displayAvatar, contains("/uploads/users/avatar-123.jpg"));
+  });
+
+  testWidgets('CustomLogoLoader widget test', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const GetMaterialApp(
+        home: Scaffold(
+          body: CustomLogoLoader(
+            text: 'loading.....!',
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('loading.....!'), findsOneWidget);
+    expect(find.byType(CustomLogoLoader), findsOneWidget);
   });
 }

@@ -7,7 +7,9 @@ import '../../../../data/models/motivational/motivational_message_model.dart';
 import '../../../../data/models/video/video_item_model.dart';
 import '../../../../data/repositories/category_repository.dart';
 import '../../../../data/repositories/motivational_repository.dart';
+import '../../../../data/repositories/user_repository.dart';
 import '../../../../data/repositories/video_repository.dart';
+import '../../auth/controllers/auth_controller.dart';
 
 class HomeController extends GetxController {
   final VideoRepository? videoRepository;
@@ -106,6 +108,25 @@ class HomeController extends GetxController {
         isUnauthorized.value = true;
       } else {
         errorMessage.value = ErrorHandler.getErrorMessage(e);
+      }
+    }
+
+    // 4. Sync latest user profile & avatar for HomeHeader
+    if (Get.isRegistered<UserRepository>() && Get.isRegistered<AuthController>()) {
+      final auth = Get.find<AuthController>();
+      if (auth.isLoggedIn.value) {
+        try {
+          final userRepo = Get.find<UserRepository>();
+          final profileRes = await userRepo.getProfile();
+          if (profileRes.data != null) {
+            final user = profileRes.data!;
+            auth.userName.value = user.displayName;
+            auth.userEmail.value = user.email;
+            auth.avatarUrl.value = user.displayAvatar;
+          }
+        } catch (e) {
+          debugPrint('⚠️ [HomeController.loadHomeData] User profile sync note: $e');
+        }
       }
     }
 

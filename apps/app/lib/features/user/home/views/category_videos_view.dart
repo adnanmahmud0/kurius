@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../data/models/video/video_item_model.dart';
+import '../../../../shared/widgets/custom_logo_loader.dart';
 import '../bindings/all_categories_binding.dart';
 import '../controllers/category_videos_controller.dart';
 import 'all_categories_view.dart';
@@ -97,11 +98,9 @@ class CategoryVideosView extends GetView<CategoryVideosController> {
       body: Obx(() {
         // 1. Initial Loading State
         if (controller.isLoading.value && controller.videos.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(
-              color: AppColors.primary,
-              strokeWidth: 3,
-            ),
+          return const CustomLogoLoader(
+            size: 72,
+            text: 'loading.....!',
           );
         }
 

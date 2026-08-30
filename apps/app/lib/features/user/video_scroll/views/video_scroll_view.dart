@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../shared/widgets/custom_logo_loader.dart';
 import '../controllers/video_scroll_controller.dart';
 import '../widgets/video_top_bar.dart';
 import '../widgets/video_side_actions.dart';
@@ -19,7 +20,7 @@ class VideoScrollView extends GetView<VideoScrollController> {
       backgroundColor: Colors.black,
       body: Column(
         children: [
-          // Top Header Bar
+          // Top Navigation Bar
           const VideoTopBar(),
 
           // Main Video Scroll Pager or State Views
@@ -28,11 +29,10 @@ class VideoScrollView extends GetView<VideoScrollController> {
               () {
                 // 1. Initial Loading State
                 if (controller.isLoading.value) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 3,
-                    ),
+                  return const CustomLogoLoader(
+                    size: 76,
+                    text: 'loading.....!',
+                    textColor: Colors.white,
                   );
                 }
 

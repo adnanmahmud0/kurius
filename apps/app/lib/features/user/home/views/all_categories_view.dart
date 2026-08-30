@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../shared/widgets/custom_logo_loader.dart';
 import '../controllers/all_categories_controller.dart';
 
 class AllCategoriesView extends GetView<AllCategoriesController> {
@@ -83,8 +84,9 @@ class AllCategoriesView extends GetView<AllCategoriesController> {
             Expanded(
               child: Obx(() {
                 if (ctrl.isLoading.value && ctrl.categories.isEmpty) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2.5),
+                  return const CustomLogoLoader(
+                    size: 72,
+                    text: 'loading.....!',
                   );
                 }
 
