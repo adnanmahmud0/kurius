@@ -83,6 +83,29 @@ class UserRepository {
     return response;
   }
 
+  /// Dedicated endpoint to upload or update user avatar/profile picture: POST /user/profile/image
+  Future<ApiResponse<UserModel>> updateProfileImage({
+    required String imageFilePath,
+  }) async {
+    debugPrint('🖼️ [UserRepository.updateProfileImage] Uploading avatar image file: $imageFilePath');
+    final formData = FormData.fromMap({
+      'image': await MultipartFile.fromFile(imageFilePath),
+    });
+
+    final response = await apiClient.postMultipart<UserModel>(
+      ApiEndpoints.updateProfileImage,
+      formData: formData,
+      fromJsonT: (data) => UserModel.fromJson(data as Map<String, dynamic>),
+    );
+
+    if (response.data != null) {
+      debugPrint('💾 [UserRepository.updateProfileImage] Avatar updated & saved to local cache: ${response.data?.displayAvatar}');
+      await storage.saveUserData(response.data!.toJson());
+    }
+
+    return response;
+  }
+
   /// Delete user account
   Future<ApiResponse<dynamic>> deleteAccount() async {
     debugPrint('🗑️ [UserRepository.deleteAccount] Sending delete account request');

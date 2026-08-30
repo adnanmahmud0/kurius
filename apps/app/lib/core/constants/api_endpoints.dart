@@ -28,7 +28,8 @@ class ApiEndpoints {
   // User Profile Endpoints
   static const String userProfile = '$apiPrefix/user/profile';
   static const String updateProfile = '$apiPrefix/user/profile';
-  static const String deleteAccount = '$apiPrefix/user/delete-account';
+  static const String updateProfileImage = '$apiPrefix/user/profile/image';
+  static const String deleteAccount = '$apiPrefix/user/profile';
 
   // Video Endpoints
   static const String videos = '$apiPrefix/videos';
@@ -45,7 +46,12 @@ class ApiEndpoints {
   // Category Endpoints
   static const String categories = '$apiPrefix/categories';
 
+  // Motivational Quotes Endpoints
+  static const String motivationalMessages = '$apiPrefix/motivational-messages';
+  static const String randomMotivationalMessage = '$apiPrefix/motivational-messages/random';
+
   // Legal Endpoints
   static const String privacyPolicy = '$apiPrefix/legal/privacy';
   static const String termsOfService = '$apiPrefix/legal/terms';
+  static String legalPolicy(String type) => '$apiPrefix/legal/$type';
 }

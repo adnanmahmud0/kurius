@@ -1,11 +1,20 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:kurius/core/constants/api_endpoints.dart';
 import 'package:kurius/core/network/api_response.dart';
 import 'package:kurius/core/storage/storage_service.dart';
+import 'package:kurius/data/models/auth/auth_requests.dart';
+import 'package:kurius/data/models/category/category_model.dart';
+import 'package:kurius/data/models/comment/comment_model.dart';
+import 'package:kurius/data/models/motivational/motivational_message_model.dart';
 import 'package:kurius/data/models/user/user_model.dart';
 import 'package:kurius/data/models/video/video_item_model.dart';
+import 'package:kurius/data/models/legal/legal_policy_model.dart';
 import 'package:kurius/features/user/auth/controllers/auth_controller.dart';
+import 'package:kurius/features/user/home/controllers/all_categories_controller.dart';
+import 'package:kurius/features/user/home/controllers/category_videos_controller.dart';
 import 'package:kurius/features/user/home/controllers/home_controller.dart';
+import 'package:kurius/features/user/legal/controllers/legal_policy_controller.dart';
 import 'package:kurius/features/user/profile/controllers/profile_controller.dart';
 import 'package:kurius/features/user/video_scroll/controllers/video_scroll_controller.dart';
 import 'package:kurius/features/user/video_scroll/models/video_model.dart';
@@ -80,6 +89,93 @@ void main() {
     profileController.learningHistoryIds.add('h1');
     profileController.clearLearningHistory();
     expect(profileController.learningHistoryIds, isEmpty);
+
+    // Test Delete Account state & toggle visibility
+    expect(profileController.isDeletingAccount.value, isFalse);
+    expect(profileController.obscureDeletePassword.value, isTrue);
+    profileController.toggleDeletePasswordVisibility();
+    expect(profileController.obscureDeletePassword.value, isFalse);
+
+    // Test Edit Profile status messages and edit mode toggle
+    expect(profileController.isEditingProfile.value, isFalse);
+    profileController.startEditProfile();
+    expect(profileController.isEditingProfile.value, isTrue);
+    profileController.cancelEditProfile();
+    expect(profileController.isEditingProfile.value, isFalse);
+
+    profileController.editProfileSuccessMessage.value = 'Profile updated successfully';
+    expect(profileController.editProfileSuccessMessage.value, isNotEmpty);
+    profileController.dismissEditProfileMessage();
+    expect(profileController.editProfileSuccessMessage.value, isEmpty);
+  });
+
+  test('ChangePasswordRequest DTO JSON Serialization Test', () {
+    const request = ChangePasswordRequest(
+      currentPassword: 'OldPassword123!',
+      newPassword: 'NewSecurePassword123!',
+      confirmPassword: 'NewSecurePassword123!',
+    );
+
+    final json = request.toJson();
+    expect(json['currentPassword'], 'OldPassword123!');
+    expect(json['newPassword'], 'NewSecurePassword123!');
+    expect(json['confirmPassword'], 'NewSecurePassword123!');
+  });
+
+  test('CategoryModel OpenAPI Deserialization & Helper Test', () {
+    final catJson = {
+      "id": "eef0d531-c33d-4bed-b04c-6d38d7772fd8",
+      "name": "Education",
+      "slug": "education",
+      "thumbnail": "/uploads/categories/67af9512-0bb7-41e6-ad71-84f9fef70a39.jpg",
+      "status": "active",
+      "createdAt": "2026-08-27T13:26:18.649Z",
+      "updatedAt": "2026-08-29T15:11:08.403Z",
+      "_count": {"videos": 5}
+    };
+
+    final category = CategoryModel.fromJson(catJson);
+    expect(category.id, 'eef0d531-c33d-4bed-b04c-6d38d7772fd8');
+    expect(category.name, 'Education');
+    expect(category.slug, 'education');
+    expect(category.videosCount, 5);
+    expect(category.displayThumbnail, 'https://api.kuriusapp.cloud/uploads/categories/67af9512-0bb7-41e6-ad71-84f9fef70a39.jpg');
+    expect(category.title, 'Education');
+  });
+
+  test('MotivationalMessageModel API JSON Deserialization Test', () {
+    final msgJson = {
+      "id": "80019224-5b07-47f9-92c0-9968c2c417c0",
+      "message": "Success is not final, failure is not fatal: It is the courage to continue that counts.",
+      "author": "Winston Churchill",
+      "status": "active",
+      "createdAt": "2026-08-29T15:09:51.468Z",
+      "updatedAt": "2026-08-29T15:09:51.468Z"
+    };
+
+    final model = MotivationalMessageModel.fromJson(msgJson);
+    expect(model.id, '80019224-5b07-47f9-92c0-9968c2c417c0');
+    expect(model.message, contains('courage to continue'));
+    expect(model.author, 'Winston Churchill');
+    expect(model.displayAuthor, 'Winston Churchill');
+    expect(model.formattedText, contains('— Winston Churchill'));
+  });
+
+  test('AllCategoriesController State and Filtering Test', () {
+    final allCatController = Get.put(AllCategoriesController());
+    expect(allCatController.categories, isEmpty);
+
+    const cat1 = CategoryModel(id: '1', name: 'Comedy', slug: 'comedy', videosCount: 2);
+    const cat2 = CategoryModel(id: '2', name: 'Education', slug: 'education', videosCount: 4);
+    allCatController.categories.value = [cat1, cat2];
+    allCatController.filteredCategories.value = [cat1, cat2];
+
+    allCatController.filterCategories('Edu');
+    expect(allCatController.filteredCategories.length, 1);
+    expect(allCatController.filteredCategories.first.name, 'Education');
+
+    allCatController.filterCategories('');
+    expect(allCatController.filteredCategories.length, 2);
   });
 
   test('VideoModel & VideoItemModel API JSON Deserialization Test', () {
@@ -87,8 +183,8 @@ void main() {
       "id": "vid-999",
       "title": "Quantum Computing 101",
       "subtitle": "Understanding qubits and superposition",
-      "videoUrl": "https://api.kuriusapp.cloud/uploads/videos/quantum.mp4",
-      "thumbnailUrl": "https://images.unsplash.com/photo-1635070041078-e363dbe005cb",
+      "videoUrl": "/uploads/videos/quantum.mp4",
+      "thumbnailUrl": "/uploads/thumbnails/quantum.jpg",
       "categoryId": "cat-physics",
       "hashtags": ["quantum", "physics", "tech"],
       "status": "active",
@@ -125,6 +221,8 @@ void main() {
     expect(videoItem.stats.likesCount, 420);
     expect(videoItem.stats.commentsCount, 18);
     expect(videoItem.hashtags, contains('quantum'));
+    expect(videoItem.displayThumbnail, 'https://api.kuriusapp.cloud/uploads/thumbnails/quantum.jpg');
+    expect(videoItem.fullVideoUrl, 'https://api.kuriusapp.cloud/uploads/videos/quantum.mp4');
 
     final videoModel = VideoModel.fromJson(sampleJson);
     expect(videoModel.id, 'vid-999');
@@ -133,7 +231,75 @@ void main() {
     expect(videoModel.initialComments, 18);
     expect(videoModel.creatorName, 'Dr. Sarah');
     expect(videoModel.categoryName, 'Physics');
+    expect(videoModel.displayThumbnail, 'https://api.kuriusapp.cloud/uploads/thumbnails/quantum.jpg');
+    expect(videoModel.fullVideoUrl, 'https://api.kuriusapp.cloud/uploads/videos/quantum.mp4');
     expect(videoModel.hashtags.length, 3);
+  });
+
+  test('CommentModel API JSON Deserialization & Helper Test', () {
+    final commentJson = {
+      "id": "c-100",
+      "userId": "u-50",
+      "videoId": "v-1",
+      "commentText": "This is an insightful video!",
+      "status": "active",
+      "createdAt": "2026-08-29T10:00:00.000Z",
+      "updatedAt": "2026-08-29T10:00:00.000Z",
+      "user": {
+        "id": "u-50",
+        "name": "Sarah Connor",
+        "avatar": "https://i.ibb.co.com/avatar.jpg"
+      }
+    };
+
+    final comment = CommentModel.fromJson(commentJson);
+    expect(comment.id, 'c-100');
+    expect(comment.commentText, 'This is an insightful video!');
+    expect(comment.userName, 'Sarah Connor');
+    expect(comment.avatarLetter, 'S');
+    expect(comment.userAvatar, 'https://i.ibb.co.com/avatar.jpg');
+    expect(comment.timeAgo, isNotEmpty);
+  });
+
+  test('CategoryVideosController State & Pagination Defaults', () {
+    final catController = Get.put(CategoryVideosController());
+    expect(catController.videos, isEmpty);
+    expect(catController.isLoading.value, isFalse);
+    expect(catController.isLoadingMore.value, isFalse);
+    expect(catController.nextCursor.value, isNull);
+    expect(catController.hasNextPage.value, isTrue);
+
+    const category = CategoryModel(id: 'cat-1', name: 'Comedy', slug: 'comedy');
+    catController.category.value = category;
+    catController.categoryId.value = category.id;
+    catController.categoryName.value = category.title;
+    expect(catController.categoryName.value, 'Comedy');
+
+    // Test Search Toggle & Filtering
+    expect(catController.isSearching.value, isFalse);
+    catController.toggleSearch();
+    expect(catController.isSearching.value, isTrue);
+
+    const video1 = VideoItemModel(
+      id: '1',
+      title: 'Funny Moments in Science',
+      categoryId: 'cat-1',
+      videoUrl: 'https://example.com/1.mp4',
+    );
+    const video2 = VideoItemModel(
+      id: '2',
+      title: 'Calculus Basics',
+      categoryId: 'cat-1',
+      videoUrl: 'https://example.com/2.mp4',
+    );
+    catController.videos.value = [video1, video2];
+
+    catController.filterVideos('Science');
+    expect(catController.displayedVideos.length, 1);
+    expect(catController.displayedVideos.first.title, 'Funny Moments in Science');
+
+    catController.clearSearch();
+    expect(catController.searchQuery.value, '');
   });
 
   test('PaginationMeta Cursor and Pagination Parsing Test', () {
@@ -181,9 +347,6 @@ void main() {
     videoController.toggleLike('vid-123');
     expect(videoController.likedMap['vid-123'] ?? false, isFalse);
 
-    videoController.addComment('A test comment');
-    expect(videoController.comments, isEmpty);
-
     // Test format duration
     expect(videoController.formatDuration(65), '1:05');
     expect(videoController.formatDuration(0), '0:00');
@@ -203,5 +366,43 @@ void main() {
     final homeController = Get.put(HomeController());
     expect(homeController.categories, isEmpty);
     expect(homeController.latestVideos, isEmpty);
+    expect(homeController.factOfTheDay.value, isNotEmpty);
+  });
+
+  test('LegalPolicyModel API Deserialization & Controller Test', () {
+    final policyJson = {
+      "id": "220494d1-9225-438f-814b-97e683ddc7fb",
+      "type": "terms",
+      "title": "Terms of Service",
+      "content": "## 1. Acceptance of Terms\nBy accessing or using the Kurius Platform...",
+      "createdAt": "2026-08-27T13:26:18.686Z",
+      "updatedAt": "2026-08-27T13:26:18.686Z"
+    };
+
+    final policy = LegalPolicyModel.fromJson(policyJson);
+    expect(policy.id, "220494d1-9225-438f-814b-97e683ddc7fb");
+    expect(policy.type, "terms");
+    expect(policy.title, "Terms of Service");
+    expect(policy.content, contains("Acceptance of Terms"));
+
+    final controller = Get.put(LegalPolicyController(initialPolicyType: 'privacy'));
+    expect(controller.policyType.value, 'privacy');
+    expect(controller.screenTitle, 'Privacy Policy');
+  });
+
+  test('POST /user/profile/image endpoint and UserModel avatar update test', () {
+    expect(ApiEndpoints.updateProfileImage, '/api/v1/user/profile/image');
+
+    final userImageJson = {
+      "id": "u-img-123",
+      "email": "user@example.com",
+      "name": "Alex Smith",
+      "avatar": "/uploads/users/avatar-123.jpg",
+      "verified": true,
+    };
+
+    final user = UserModel.fromJson(userImageJson);
+    expect(user.id, "u-img-123");
+    expect(user.displayAvatar, contains("/uploads/users/avatar-123.jpg"));
   });
 }

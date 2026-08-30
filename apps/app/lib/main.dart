@@ -5,6 +5,8 @@ import 'app/bindings/initial_binding.dart';
 import 'app/routes/app_pages.dart';
 import 'app/theme/app_theme.dart';
 import 'core/storage/storage_service.dart';
+import 'features/user/home/bindings/home_binding.dart';
+import 'features/user/home/views/home_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +39,11 @@ class KuriusApp extends StatelessWidget {
       initialBinding: InitialBinding(),
       initialRoute: AppPages.initial,
       getPages: AppPages.routes,
+      unknownRoute: GetPage(
+        name: '/not-found',
+        page: () => const HomeView(),
+        binding: HomeBinding(),
+      ),
       defaultTransition: Transition.fadeIn,
     );
   }

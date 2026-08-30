@@ -10,6 +10,23 @@ void showCommentsBottomSheet(BuildContext context) {
   final controller = Get.find<VideoScrollController>();
   final storage = Get.isRegistered<StorageService>() ? Get.find<StorageService>() : StorageService.to;
   final isLoggedIn = storage.isLoggedIn();
+  final currentUser = storage.getUserData();
+  final currentUserId = currentUser?['id'] as String? ?? '';
+  final currentUserRole = currentUser?['role'] as String? ?? '';
+
+  // Load latest comments from backend API on bottom sheet open
+  controller.loadCommentsForCurrentVideo(isRefresh: true);
+
+  final scrollController = ScrollController();
+  scrollController.addListener(() {
+    if (scrollController.position.pixels >=
+            scrollController.position.maxScrollExtent - 100 &&
+        controller.hasCommentsNextPage.value &&
+        !controller.isLoadingMoreComments.value &&
+        !controller.isLoadingComments.value) {
+      controller.loadMoreCommentsForCurrentVideo();
+    }
+  });
 
   showModalBottomSheet(
     context: context,
@@ -17,7 +34,7 @@ void showCommentsBottomSheet(BuildContext context) {
     backgroundColor: Colors.transparent,
     builder: (context) {
       return Container(
-        height: MediaQuery.of(context).size.height * 0.65,
+        height: MediaQuery.of(context).size.height * 0.70,
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -47,7 +64,7 @@ void showCommentsBottomSheet(BuildContext context) {
                 children: [
                   Obx(
                     () => Text(
-                      'Comments (${controller.comments.length})',
+                      'Comments (${controller.activeVideoComments.length})',
                       style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -68,7 +85,13 @@ void showCommentsBottomSheet(BuildContext context) {
             Expanded(
               child: Obx(
                 () {
-                  if (controller.comments.isEmpty) {
+                  if (controller.isLoadingComments.value && controller.activeVideoComments.isEmpty) {
+                    return const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary),
+                    );
+                  }
+
+                  if (controller.activeVideoComments.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -77,7 +100,7 @@ void showCommentsBottomSheet(BuildContext context) {
                               size: 40, color: AppColors.textMuted),
                           const SizedBox(height: 10),
                           Text(
-                            'No information found',
+                            'No comments yet',
                             style: GoogleFonts.outfit(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -98,55 +121,150 @@ void showCommentsBottomSheet(BuildContext context) {
                   }
 
                   return ListView.separated(
+                    controller: scrollController,
                     padding: const EdgeInsets.all(20),
-                    itemCount: controller.comments.length,
+                    itemCount: controller.activeVideoComments.length +
+                        (controller.isLoadingMoreComments.value ? 1 : 0),
                     separatorBuilder: (context, index) => const SizedBox(height: 16),
                     itemBuilder: (context, index) {
-                      final comment = controller.comments[index];
+                      if (index == controller.activeVideoComments.length) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          ),
+                        );
+                      }
+
+                      final comment = controller.activeVideoComments[index];
+                      final canDelete = isLoggedIn &&
+                          (comment.userId == currentUserId ||
+                              currentUserRole == 'ADMIN' ||
+                              comment.userId.isEmpty);
 
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: AppColors.pillBackground,
-                            child: Text(
-                              comment.avatarLetter,
-                              style: GoogleFonts.outfit(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
+                          // Avatar
+                          if (comment.userAvatar.isNotEmpty)
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundImage: NetworkImage(comment.userAvatar),
+                              backgroundColor: AppColors.pillBackground,
+                            )
+                          else
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: AppColors.pillBackground,
+                              child: Text(
+                                comment.avatarLetter,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
-                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      comment.userName,
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textPrimary,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          comment.userName,
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          comment.timeAgo,
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      comment.timeAgo,
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary,
+                                    // Delete Button
+                                    if (canDelete)
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          size: 18,
+                                          color: Colors.redAccent,
+                                        ),
+                                        splashRadius: 18,
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                              ),
+                                              title: Text(
+                                                'Delete Comment',
+                                                style: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                              content: Text(
+                                                'Are you sure you want to delete this comment?',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 14,
+                                                  color: AppColors.textSecondary,
+                                                ),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(ctx),
+                                                  child: Text(
+                                                    'Cancel',
+                                                    style: GoogleFonts.outfit(
+                                                      color: AppColors.textSecondary,
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ),
+                                                ElevatedButton(
+                                                  onPressed: () {
+                                                    Navigator.pop(ctx);
+                                                    controller.deleteComment(comment.id);
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.redAccent,
+                                                    foregroundColor: Colors.white,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(10),
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    'Delete',
+                                                    style: GoogleFonts.outfit(
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
                                       ),
-                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  comment.comment,
+                                  comment.commentText,
                                   style: GoogleFonts.outfit(
                                     fontSize: 14,
                                     color: AppColors.textPrimary,
@@ -193,15 +311,23 @@ void showCommentsBottomSheet(BuildContext context) {
                                 ),
                                 border: InputBorder.none,
                               ),
-                              onSubmitted: (val) => controller.addComment(val),
+                              onSubmitted: (val) => controller.postComment(val),
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.send_rounded, color: AppColors.primary),
-                          onPressed: () =>
-                              controller.addComment(controller.commentInputController.text),
+                        Obx(
+                          () => controller.isPostingComment.value
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                )
+                              : IconButton(
+                                  icon: const Icon(Icons.send_rounded, color: AppColors.primary),
+                                  onPressed: () =>
+                                      controller.postComment(controller.commentInputController.text),
+                                ),
                         ),
                       ],
                     )

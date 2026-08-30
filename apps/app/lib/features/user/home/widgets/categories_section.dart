@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../bindings/all_categories_binding.dart';
+import '../bindings/category_videos_binding.dart';
 import '../controllers/home_controller.dart';
+import '../views/all_categories_view.dart';
+import '../views/category_videos_view.dart';
 
 class CategoriesSection extends GetView<HomeController> {
   const CategoriesSection({super.key});
@@ -12,13 +16,38 @@ class CategoriesSection extends GetView<HomeController> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Categories',
-          style: GoogleFonts.outfit(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Categories',
+              style: GoogleFonts.outfit(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                Get.to(
+                  () => const AllCategoriesView(),
+                  binding: AllCategoriesBinding(),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                child: Text(
+                  'See all',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 14),
         Obx(() {
@@ -63,9 +92,21 @@ class CategoriesSection extends GetView<HomeController> {
                 final category = controller.categories[index];
                 final isSelected =
                     controller.selectedCategoryId.value == category.id;
+                final thumbUrl = category.displayThumbnail;
 
                 return GestureDetector(
-                  onTap: () => controller.selectCategory(category.id),
+                  onTap: () {
+                    controller.selectCategory(category.id);
+                    Get.to(
+                      () => const CategoryVideosView(),
+                      binding: CategoryVideosBinding(),
+                      arguments: {
+                        'category': category,
+                        'categoryId': category.id,
+                        'categoryName': category.title,
+                      },
+                    );
+                  },
                   child: Column(
                     children: [
                       AnimatedContainer(
@@ -83,11 +124,28 @@ class CategoriesSection extends GetView<HomeController> {
                             ),
                           ],
                         ),
-                        child: Icon(
-                          category.displayIcon,
-                          color: Colors.white,
-                          size: 28,
-                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: thumbUrl != null
+                            ? Image.network(
+                                thumbUrl,
+                                fit: BoxFit.cover,
+                                width: 58,
+                                height: 58,
+                                errorBuilder: (ctx, err, stack) => Center(
+                                  child: Icon(
+                                    category.displayIcon,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Icon(
+                                  category.displayIcon,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
                       ),
                       const SizedBox(height: 8),
                       Text(

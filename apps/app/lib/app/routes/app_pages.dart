@@ -8,8 +8,14 @@ import '../../features/user/auth/views/splash_view.dart';
 import '../../features/user/auth/views/verify_otp_view.dart';
 import '../../features/user/discover/bindings/discover_binding.dart';
 import '../../features/user/discover/views/discover_view.dart';
+import '../../features/user/home/bindings/all_categories_binding.dart';
+import '../../features/user/home/bindings/category_videos_binding.dart';
 import '../../features/user/home/bindings/home_binding.dart';
+import '../../features/user/home/views/all_categories_view.dart';
+import '../../features/user/home/views/category_videos_view.dart';
 import '../../features/user/home/views/home_view.dart';
+import '../../features/user/legal/bindings/legal_policy_binding.dart';
+import '../../features/user/legal/views/legal_policy_view.dart';
 import '../../features/user/profile/bindings/profile_binding.dart';
 import '../../features/user/profile/views/change_password_view.dart';
 import '../../features/user/profile/views/edit_profile_view.dart';
@@ -38,6 +44,18 @@ class AppPages {
       page: () => const HomeView(),
       binding: HomeBinding(),
       transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: AppRoutes.allCategories,
+      page: () => const AllCategoriesView(),
+      binding: AllCategoriesBinding(),
+      transition: Transition.rightToLeftWithFade,
+    ),
+    GetPage(
+      name: AppRoutes.categoryVideos,
+      page: () => const CategoryVideosView(),
+      binding: CategoryVideosBinding(),
+      transition: Transition.rightToLeftWithFade,
     ),
     GetPage(
       name: AppRoutes.auth,
@@ -110,6 +128,26 @@ class AppPages {
       page: () => const VideoScrollView(),
       binding: VideoScrollBinding(),
       transition: Transition.downToUp,
+    ),
+    GetPage(
+      name: AppRoutes.legalPolicy,
+      page: () => const LegalPolicyView(),
+      binding: LegalPolicyBinding(),
+      transition: Transition.rightToLeftWithFade,
+    ),
+    GetPage(
+      name: AppRoutes.privacyPolicy,
+      page: () => const LegalPolicyView(),
+      binding: LegalPolicyBinding(),
+      arguments: {'type': 'privacy'},
+      transition: Transition.rightToLeftWithFade,
+    ),
+    GetPage(
+      name: AppRoutes.termsOfService,
+      page: () => const LegalPolicyView(),
+      binding: LegalPolicyBinding(),
+      arguments: {'type': 'terms'},
+      transition: Transition.rightToLeftWithFade,
     ),
   ];
 }

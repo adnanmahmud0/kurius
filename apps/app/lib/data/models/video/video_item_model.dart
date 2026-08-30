@@ -69,12 +69,18 @@ class VideoItemModel {
     'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800&auto=format&fit=crop&q=80', // Learning Book
   ];
 
+  /// Returns actual absolute thumbnail URL from backend or fallback image
   String get displayThumbnail {
-    if (thumbnailUrl != null && thumbnailUrl!.isNotEmpty) {
-      return thumbnailUrl!;
+    final raw = thumbnailUrl?.trim() ?? '';
+    if (raw.isEmpty) {
+      final index = id.hashCode.abs() % fallbackThumbnails.length;
+      return fallbackThumbnails[index];
     }
-    final index = id.hashCode.abs() % fallbackThumbnails.length;
-    return fallbackThumbnails[index];
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      return raw;
+    }
+    final path = raw.startsWith('/') ? raw : '/$raw';
+    return 'https://api.kuriusapp.cloud$path';
   }
 
   String get categoryName => category?.name ?? 'General';

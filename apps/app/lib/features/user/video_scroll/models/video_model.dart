@@ -81,13 +81,23 @@ class VideoModel {
     'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800&auto=format&fit=crop&q=80', // Learning Book
   ];
 
-  /// Returns actual thumbnail if available, or a deterministic curated curiosity image
+  /// Returns actual absolute thumbnail URL from backend or fallback image
   String get displayThumbnail {
-    if (thumbnailUrl != null && thumbnailUrl!.isNotEmpty) {
-      return thumbnailUrl!;
+    final raw = (thumbnailUrl != null && thumbnailUrl!.trim().isNotEmpty)
+        ? thumbnailUrl!.trim()
+        : imageUrl.trim();
+
+    if (raw.isEmpty) {
+      final index = id.hashCode.abs() % fallbackThumbnails.length;
+      return fallbackThumbnails[index];
     }
-    final index = id.hashCode.abs() % fallbackThumbnails.length;
-    return fallbackThumbnails[index];
+
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      return raw;
+    }
+
+    final path = raw.startsWith('/') ? raw : '/$raw';
+    return 'https://api.kuriusapp.cloud$path';
   }
 
   factory VideoModel.fromJson(Map<String, dynamic> json) {

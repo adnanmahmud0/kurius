@@ -5,6 +5,8 @@ import '../../core/storage/storage_service.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/category_repository.dart';
 import '../../data/repositories/comment_repository.dart';
+import '../../data/repositories/legal_repository.dart';
+import '../../data/repositories/motivational_repository.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/repositories/video_repository.dart';
 import '../../features/user/auth/controllers/auth_controller.dart';
@@ -44,6 +46,14 @@ class InitialBinding extends Bindings {
     );
     Get.put<CommentRepository>(
       CommentRepository(apiClient: apiClient),
+      permanent: true,
+    );
+    Get.put<MotivationalRepository>(
+      MotivationalRepository(apiClient: apiClient),
+      permanent: true,
+    );
+    Get.put<LegalRepository>(
+      LegalRepository(apiClient: apiClient),
       permanent: true,
     );
 

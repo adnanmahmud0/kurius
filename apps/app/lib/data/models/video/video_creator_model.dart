@@ -12,8 +12,15 @@ class VideoCreatorModel {
     this.email,
   });
 
-  String get displayAvatar =>
-      avatar ?? 'https://i.ibb.co.com/Cs5Kr1gT/dc262f1cd78130b972c5dbd8643ad972.jpg';
+  String get displayAvatar {
+    if (avatar == null || avatar!.trim().isEmpty) {
+      return 'https://i.ibb.co.com/Cs5Kr1gT/dc262f1cd78130b972c5dbd8643ad972.jpg';
+    }
+    final raw = avatar!.trim();
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    final cleanPath = raw.startsWith('/') ? raw : '/$raw';
+    return 'https://api.kuriusapp.cloud$cleanPath';
+  }
 
   factory VideoCreatorModel.fromJson(Map<String, dynamic> json) {
     return VideoCreatorModel(
