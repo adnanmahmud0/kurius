@@ -101,11 +101,8 @@ export default function LoginPage() {
       </CardContent>
 
       <CardFooter className="border-border/60 text-muted-foreground flex flex-col space-y-2 border-t pt-4 text-center text-xs">
-        <p>
-          Don&apos;t have an account yet?{" "}
-          <Link href="/register" className="text-primary font-semibold hover:underline">
-            Register here
-          </Link>
+        <p className="text-muted-foreground/80">
+          Authorized personnel only. Contact Super Admin for console access.
         </p>
       </CardFooter>
     </Card>

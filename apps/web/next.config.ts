@@ -15,6 +15,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   reactCompiler: true,
   htmlLimitedBots: /.*/,
   turbopack: {

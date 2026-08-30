@@ -4,10 +4,8 @@ const createVideoZodSchema = z.object({
   body: z.object({
     title: z
       .string({ required_error: "Title is required" })
-      .min(2, "Title must be at least 2 characters"),
-    subtitle: z
-      .string({ required_error: "Subtitle is required" })
-      .min(2, "Subtitle must be at least 2 characters"),
+      .min(1, "Title must be at least 1 character"),
+    subtitle: z.string().optional().default(""),
     categoryId: z.string({ required_error: "Category ID is required" }),
     hashtags: z
       .union([z.array(z.string()), z.string()])
@@ -33,8 +31,8 @@ const createVideoZodSchema = z.object({
 
 const updateVideoZodSchema = z.object({
   body: z.object({
-    title: z.string().min(2).optional(),
-    subtitle: z.string().min(2).optional(),
+    title: z.string().min(1).optional(),
+    subtitle: z.string().optional(),
     categoryId: z.string().optional(),
     hashtags: z
       .union([z.array(z.string()), z.string()])

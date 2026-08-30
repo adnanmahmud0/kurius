@@ -1,10 +1,9 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 
 import { USER_ROLES } from "../../../enums/user";
 import auth from "../../middlewares/auth";
-import validateRequest from "../../middlewares/validateRequest";
+import fileUploadHandler from "../../middlewares/fileUploadHandler";
 import { CategoryController } from "./category.controller";
-import { CategoryValidation } from "./category.validation";
 
 const router = express.Router();
 
@@ -22,16 +21,26 @@ router.get(
 router.post(
   "/admin",
   auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-  validateRequest(CategoryValidation.createCategoryZodSchema),
-  CategoryController.createCategory
+  fileUploadHandler(),
+  (req: Request, res: Response, next: NextFunction) => {
+    if (req.body.data) {
+      req.body = JSON.parse(req.body.data);
+    }
+    return CategoryController.createCategory(req, res, next);
+  }
 );
 
 router
   .route("/admin/:id")
   .put(
     auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-    validateRequest(CategoryValidation.updateCategoryZodSchema),
-    CategoryController.updateCategory
+    fileUploadHandler(),
+    (req: Request, res: Response, next: NextFunction) => {
+      if (req.body.data) {
+        req.body = JSON.parse(req.body.data);
+      }
+      return CategoryController.updateCategory(req, res, next);
+    }
   )
   .delete(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), CategoryController.deleteCategory);
 

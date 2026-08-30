@@ -27,29 +27,23 @@ const docsGuard = (_req: Request, res: Response, next: () => void) => {
   next();
 };
 
-router.use(docsGuard);
-
 // Raw OpenAPI JSON spec endpoint
-router.get("/docs.json", (_req: Request, res: Response) => {
+router.get("/docs.json", docsGuard, (_req: Request, res: Response) => {
   res.setHeader("Content-Type", "application/json");
   res.send(getDocument());
 });
 
 // Swagger UI Explorer endpoint
-router.use(
-  "/docs",
-  swaggerUi.serve,
-  (req: Request, res: Response, next: () => void) => {
-    const doc = getDocument();
-    swaggerUi.setup(doc, {
-      customSiteTitle: `${config.branding.projectName || "Express"} API Documentation`,
-      customCss: ".swagger-ui .topbar { display: none }",
-      swaggerOptions: {
-        persistAuthorization: true,
-        displayRequestDuration: true
-      }
-    })(req, res, next);
-  }
-);
+router.use("/docs", docsGuard, swaggerUi.serve, (req: Request, res: Response, next: () => void) => {
+  const doc = getDocument();
+  swaggerUi.setup(doc, {
+    customSiteTitle: `${config.branding.projectName || "Express"} API Documentation`,
+    customCss: ".swagger-ui .topbar { display: none }",
+    swaggerOptions: {
+      persistAuthorization: true,
+      displayRequestDuration: true
+    }
+  })(req, res, next);
+});
 
 export const DocsRoutes = router;

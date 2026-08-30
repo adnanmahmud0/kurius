@@ -3,16 +3,15 @@ import path from "path";
 
 import { v4 as uuidv4 } from "uuid";
 
-import config from "../config";
 import { errorLogger, logger } from "../shared/logger";
 import prisma from "../shared/prisma";
 import { CloudinaryHelper } from "./cloudinaryHelper";
 
-export interface UploadResult {
+export type UploadResult = {
   url: string;
   publicId?: string;
   storageType: "local" | "cloudinary";
-}
+};
 
 /**
  * Ensures a directory exists
@@ -21,6 +20,29 @@ const ensureDir = (dirPath: string) => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
+};
+
+let cachedStorageProvider: "local" | "cloudinary" = "local";
+let lastStorageSettingFetch = 0;
+const STORAGE_SETTING_CACHE_TTL = 60 * 1000; // 60 seconds
+
+export const clearStorageSettingCache = () => {
+  lastStorageSettingFetch = 0;
+};
+
+const getActiveStorageProvider = async (): Promise<"local" | "cloudinary"> => {
+  const now = Date.now();
+  if (now - lastStorageSettingFetch < STORAGE_SETTING_CACHE_TTL) {
+    return cachedStorageProvider;
+  }
+  try {
+    const setting = await prisma.storageSetting.findFirst();
+    cachedStorageProvider = setting?.provider === "cloudinary" ? "cloudinary" : "local";
+    lastStorageSettingFetch = now;
+  } catch {
+    cachedStorageProvider = "local";
+  }
+  return cachedStorageProvider;
 };
 
 /**
@@ -32,16 +54,8 @@ export const uploadFile = async (
   file: Express.Multer.File,
   folder = "videos"
 ): Promise<UploadResult> => {
-  // Check active storage setting from database
-  let provider = "local";
-  try {
-    const setting = await prisma.storageSetting.findFirst();
-    if (setting?.provider === "cloudinary") {
-      provider = "cloudinary";
-    }
-  } catch {
-    provider = "local";
-  }
+  // Check active storage setting from cache/database
+  const provider = await getActiveStorageProvider();
 
   // 1. Cloudinary upload
   if (provider === "cloudinary") {
@@ -92,13 +106,32 @@ export const uploadFile = async (
   }
 
   const relativeUrl = `/uploads/${folder}/${filename}`;
-  logger.info(`File saved locally: ${relativeUrl}`);
+  const fullUrl = formatFileUrl(relativeUrl);
+  logger.info(`File saved locally: ${relativeUrl} -> ${fullUrl}`);
 
   return {
-    url: relativeUrl,
+    url: fullUrl || relativeUrl,
     publicId: `${folder}/${filename}`,
     storageType: "local"
   };
+};
+
+/**
+ * Resolves a stored file path to a fully-qualified public HTTP/HTTPS URL
+ */
+export const formatFileUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  const apiBase =
+    process.env.API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.SERVER_URL ||
+    "https://api.kuriusapp.cloud";
+  const cleanBase = apiBase.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
+  const cleanPath = url.startsWith("/") ? url : `/${url}`;
+  return `${cleanBase}${cleanPath}`;
 };
 
 /**
@@ -131,5 +164,7 @@ export const deleteFile = async (publicId: string, storageType = "local"): Promi
 
 export const StorageAdapter = {
   uploadFile,
-  deleteFile
+  deleteFile,
+  formatFileUrl,
+  clearStorageSettingCache
 };

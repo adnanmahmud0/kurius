@@ -4,16 +4,16 @@ import ApiError from "../../../errors/ApiError";
 import { StorageAdapter } from "../../../helpers/storageAdapter";
 import prisma from "../../../shared/prisma";
 
-interface ICreateVideoPayload {
+type ICreateVideoPayload = {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   categoryId: string;
   hashtags?: string[] | string;
   videoUrl?: string;
   thumbnailUrl?: string;
-}
+};
 
-interface IUpdateVideoPayload {
+type IUpdateVideoPayload = {
   title?: string;
   subtitle?: string;
   categoryId?: string;
@@ -21,7 +21,7 @@ interface IUpdateVideoPayload {
   status?: "active" | "delete";
   videoUrl?: string;
   thumbnailUrl?: string;
-}
+};
 
 const parseHashtags = (input: unknown): string[] => {
   if (!input) return [];
@@ -118,14 +118,28 @@ const getAllVideosFromDB = async (
 
   const formattedVideos = items.map((video: any) => {
     const isLiked = currentUserId ? Boolean(video.likes?.length > 0) : false;
-    const { likes, ...rest } = video;
+    const { likes, _count, ...rest } = video;
     return {
       ...rest,
+      videoUrl: StorageAdapter.formatFileUrl(rest.videoUrl),
+      thumbnailUrl: StorageAdapter.formatFileUrl(rest.thumbnailUrl),
+      category: rest.category
+        ? {
+            ...rest.category,
+            thumbnail: StorageAdapter.formatFileUrl(rest.category.thumbnail)
+          }
+        : rest.category,
+      creator: rest.creator
+        ? {
+            ...rest.creator,
+            avatar: StorageAdapter.formatFileUrl(rest.creator.avatar)
+          }
+        : rest.creator,
       isLiked,
       stats: {
-        viewsCount: video._count?.views || 0,
-        likesCount: video._count?.likes || 0,
-        commentsCount: video._count?.comments || 0
+        viewsCount: _count?.views || 0,
+        likesCount: _count?.likes || 0,
+        commentsCount: _count?.comments || 0
       }
     };
   });
@@ -170,15 +184,29 @@ const getVideoByIdFromDB = async (id: string, currentUserId?: string) => {
   }
 
   const isLiked = currentUserId ? Boolean(video.likes?.length > 0) : false;
-  const { likes, ...rest } = video;
+  const { likes, _count, ...rest } = video;
 
   return {
     ...rest,
+    videoUrl: StorageAdapter.formatFileUrl(rest.videoUrl),
+    thumbnailUrl: StorageAdapter.formatFileUrl(rest.thumbnailUrl),
+    category: rest.category
+      ? {
+          ...rest.category,
+          thumbnail: StorageAdapter.formatFileUrl(rest.category.thumbnail)
+        }
+      : rest.category,
+    creator: rest.creator
+      ? {
+          ...rest.creator,
+          avatar: StorageAdapter.formatFileUrl(rest.creator.avatar)
+        }
+      : rest.creator,
     isLiked,
     stats: {
-      viewsCount: video._count?.views || 0,
-      likesCount: video._count?.likes || 0,
-      commentsCount: video._count?.comments || 0
+      viewsCount: _count?.views || 0,
+      likesCount: _count?.likes || 0,
+      commentsCount: _count?.comments || 0
     }
   };
 };
@@ -227,7 +255,7 @@ const createVideoToDB = async (
   const video = await prisma.video.create({
     data: {
       title: payload.title,
-      subtitle: payload.subtitle,
+      subtitle: payload.subtitle || "",
       videoUrl: finalVideoUrl,
       thumbnailUrl: finalThumbnailUrl || null,
       categoryId: payload.categoryId,
@@ -304,6 +332,8 @@ const getAdminVideosFromDB = async (query: {
 
   const formatted = videos.map((v: any) => ({
     ...v,
+    videoUrl: StorageAdapter.formatFileUrl(v.videoUrl),
+    thumbnailUrl: StorageAdapter.formatFileUrl(v.thumbnailUrl),
     stats: {
       viewsCount: v._count?.views || 0,
       likesCount: v._count?.likes || 0,

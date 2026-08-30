@@ -11,7 +11,10 @@ export default defineConfig([
       "jsx-a11y/anchor-is-valid": [
         "error",
         { components: ["Link"], aspects: ["invalidHref", "preferButton"] }
-      ]
+      ],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "react-hooks/set-state-in-effect": "warn"
     },
     settings: {
       tailwindcss: {

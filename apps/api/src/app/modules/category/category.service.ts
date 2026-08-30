@@ -1,6 +1,7 @@
 import { StatusCodes } from "http-status-codes";
 
 import ApiError from "../../../errors/ApiError";
+import { StorageAdapter } from "../../../helpers/storageAdapter";
 import prisma from "../../../shared/prisma";
 
 const generateSlug = (name: string): string => {
@@ -13,7 +14,8 @@ const generateSlug = (name: string): string => {
 };
 
 // Create category (Admin)
-const createCategoryToDB = async (name: string) => {
+const createCategoryToDB = async (payload: { name: string; thumbnail?: string | null }) => {
+  const { name, thumbnail } = payload;
   const slug = generateSlug(name);
 
   const isExist = await prisma.category.findFirst({
@@ -30,6 +32,7 @@ const createCategoryToDB = async (name: string) => {
     data: {
       name,
       slug,
+      thumbnail: thumbnail || null,
       status: "active"
     }
   });
@@ -49,7 +52,10 @@ const getAllCategoriesFromDB = async () => {
     }
   });
 
-  return categories;
+  return categories.map((cat: any) => ({
+    ...cat,
+    thumbnail: StorageAdapter.formatFileUrl(cat.thumbnail)
+  }));
 };
 
 // Get admin categories with pagination and search
@@ -93,7 +99,10 @@ const getAdminCategoriesFromDB = async (query: {
       total,
       totalPage: Math.ceil(total / limit)
     },
-    data: categories
+    data: categories.map((cat: any) => ({
+      ...cat,
+      thumbnail: StorageAdapter.formatFileUrl(cat.thumbnail)
+    }))
   };
 };
 
@@ -114,13 +123,16 @@ const getCategoryByIdFromDB = async (idOrSlug: string) => {
     throw new ApiError(StatusCodes.NOT_FOUND, "Category not found!");
   }
 
-  return category;
+  return {
+    ...category,
+    thumbnail: StorageAdapter.formatFileUrl(category.thumbnail)
+  };
 };
 
 // Update category (Admin)
 const updateCategoryInDB = async (
   id: string,
-  payload: { name?: string; status?: "active" | "delete" }
+  payload: { name?: string; thumbnail?: string | null; status?: "active" | "delete" }
 ) => {
   const existing = await prisma.category.findUnique({ where: { id } });
   if (!existing) {
@@ -148,6 +160,13 @@ const updateCategoryInDB = async (
     }
   }
 
+  if (payload.thumbnail !== undefined) {
+    if (existing.thumbnail && existing.thumbnail !== payload.thumbnail) {
+      await StorageAdapter.deleteFile(existing.thumbnail);
+    }
+    updateData.thumbnail = payload.thumbnail;
+  }
+
   if (payload.status) {
     updateData.status = payload.status;
   }
@@ -173,6 +192,10 @@ const deleteCategoryFromDB = async (id: string) => {
 
   if (!existing) {
     throw new ApiError(StatusCodes.NOT_FOUND, "Category not found!");
+  }
+
+  if (existing.thumbnail) {
+    await StorageAdapter.deleteFile(existing.thumbnail);
   }
 
   // If category has associated videos, safely reassign them to another category

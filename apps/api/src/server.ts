@@ -7,6 +7,7 @@ import { Server } from "socket.io";
 import app from "./app";
 import config from "./config";
 import { seedSuperAdmin } from "./DB/seedAdmin";
+import { syncDatabaseSchema } from "./DB/syncDatabase";
 import { socketHelper } from "./helpers/socketHelper";
 import { errorLogger, logger } from "./shared/logger";
 import prisma from "./shared/prisma";
@@ -23,8 +24,14 @@ async function main() {
     await prisma.$connect();
     logger.info(colors.green("🚀 Database connected successfully"));
 
-    //Seed Super Admin after database connection is successful
+    // Automatically synchronize new schema columns and tables
+    await syncDatabaseSchema();
+
+    //Seed Super Admin and initial motivational quotes
     await seedSuperAdmin();
+    const { MotivationalMessageService } =
+      await import("./app/modules/motivational-message/motivational-message.service");
+    await MotivationalMessageService.seedInitialMessagesIfEmpty();
 
     const port = Number(config.port) || 5000;
     const ipAddress = (config.ip_address as string) || "0.0.0.0";
@@ -34,10 +41,18 @@ async function main() {
     });
 
     //socket
+    const { isOriginAllowed } = await import("./app/logging/cors");
     const io = new Server(server, {
       pingTimeout: 60000,
       cors: {
-        origin: "*"
+        origin: (origin, callback) => {
+          if (isOriginAllowed(origin)) {
+            callback(null, true);
+          } else {
+            callback(new Error("Not allowed by CORS"));
+          }
+        },
+        credentials: true
       }
     });
     socketHelper.socket(io);

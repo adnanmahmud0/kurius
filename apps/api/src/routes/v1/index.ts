@@ -5,6 +5,7 @@ import { CategoryRoutes } from "../../app/modules/category/category.route";
 import { CommentRoutes } from "../../app/modules/comment/comment.route";
 import { EngagementRoutes } from "../../app/modules/engagement/engagement.route";
 import { LegalRoutes } from "../../app/modules/legal/legal.route";
+import { MotivationalMessageRoutes } from "../../app/modules/motivational-message/motivational-message.route";
 import { OAuthRoutes } from "../../app/modules/passport/oauth.route";
 import { StorageRoutes } from "../../app/modules/storage/storage.route";
 import { UserRoutes } from "../../app/modules/user/user.route";
@@ -48,6 +49,10 @@ const apiRoutes = [
   {
     path: "/legal",
     route: LegalRoutes
+  },
+  {
+    path: "/motivational-messages",
+    route: MotivationalMessageRoutes
   },
   {
     path: "/oauth",

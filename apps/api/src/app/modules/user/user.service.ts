@@ -7,6 +7,7 @@ import config from "../../../config";
 import { USER_ROLES } from "../../../enums/user";
 import ApiError from "../../../errors/ApiError";
 import { emailHelper } from "../../../helpers/emailHelper";
+import { formatFileUrl } from "../../../helpers/storageAdapter";
 import { emailTemplate } from "../../../shared/emailTemplate";
 import prisma from "../../../shared/prisma";
 import unlinkFile from "../../../shared/unlinkFile";
@@ -50,40 +51,45 @@ const getAllUsersToDB = async (query: Record<string, unknown>) => {
     orderBy = { createdAt: "desc" };
   }
 
-  const result = await prisma.user.findMany({
-    where,
-    skip,
-    take: limitNumber,
-    orderBy,
-    select: {
-      id: true,
-      name: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      role: true,
-      contact: true,
-      location: true,
-      image: true,
-      avatar: true,
-      status: true,
-      verified: true,
-      provider: true,
-      createdAt: true,
-      updatedAt: true,
-      _count: {
-        select: {
-          videos: true,
-          views: true,
-          likes: true,
-          comments: true
+  const [result, total] = await prisma.$transaction([
+    prisma.user.findMany({
+      where,
+      skip,
+      take: limitNumber,
+      orderBy,
+      select: {
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        contact: true,
+        location: true,
+        image: true,
+        avatar: true,
+        status: true,
+        verified: true,
+        provider: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            videos: true,
+            views: true,
+            likes: true,
+            comments: true
+          }
         }
       }
-    }
-  });
+    }),
+    prisma.user.count({ where })
+  ]);
 
   const formattedResult = result.map((u: any) => ({
     ...u,
+    image: formatFileUrl(u.image),
+    avatar: formatFileUrl(u.avatar || u.image),
     stats: {
       videosCreated: u._count?.videos || 0,
       viewsCount: u._count?.views || 0,
@@ -92,7 +98,6 @@ const getAllUsersToDB = async (query: Record<string, unknown>) => {
     }
   }));
 
-  const total = await prisma.user.count({ where });
   const totalPage = Math.ceil(total / limitNumber);
 
   return {
@@ -143,6 +148,8 @@ const getUserByIdFromDB = async (id: string) => {
   const { _count, ...rest } = user;
   return {
     ...rest,
+    image: formatFileUrl(rest.image),
+    avatar: formatFileUrl(rest.avatar || rest.image),
     stats: {
       videosCreated: _count?.videos || 0,
       viewsCount: _count?.views || 0,
@@ -186,31 +193,86 @@ const createUserToDB = async (payload: Prisma.UserCreateInput) => {
 
 const getUserProfileFromDB = async (user: JwtPayload) => {
   const { id } = user;
-  const isExistUser = await prisma.user.findUnique({ where: { id } });
+  const isExistUser = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      role: true,
+      contact: true,
+      location: true,
+      image: true,
+      avatar: true,
+      status: true,
+      verified: true,
+      provider: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: {
+          videos: true,
+          views: true,
+          likes: true,
+          comments: true
+        }
+      }
+    }
+  });
   if (!isExistUser) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
   }
 
-  return isExistUser;
+  const { _count, ...rest } = isExistUser;
+  return {
+    ...rest,
+    image: formatFileUrl(rest.image),
+    avatar: formatFileUrl(rest.avatar || rest.image),
+    stats: {
+      videosCreated: _count?.videos || 0,
+      viewsCount: _count?.views || 0,
+      likesCount: _count?.likes || 0,
+      commentsCount: _count?.comments || 0
+    }
+  };
 };
 
 const updateProfileToDB = async (user: JwtPayload, payload: Prisma.UserUpdateInput) => {
   const { id } = user;
   const isExistUser = await prisma.user.findUnique({ where: { id } });
   if (!isExistUser) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
   }
 
-  if (payload.image && isExistUser.image) {
-    unlinkFile(isExistUser.image);
+  // Clean up previous custom uploaded avatar/image if replacing
+  const { StorageAdapter } = await import("../../../helpers/storageAdapter");
+  if (
+    payload.image &&
+    typeof payload.image === "string" &&
+    isExistUser.image &&
+    !isExistUser.image.includes("ibb.co")
+  ) {
+    await StorageAdapter.deleteFile(isExistUser.image);
   }
 
-  const updateDoc = await prisma.user.update({
+  if (
+    payload.avatar &&
+    typeof payload.avatar === "string" &&
+    isExistUser.avatar &&
+    !isExistUser.avatar.includes("ibb.co") &&
+    isExistUser.avatar !== isExistUser.image
+  ) {
+    await StorageAdapter.deleteFile(isExistUser.avatar);
+  }
+
+  await prisma.user.update({
     where: { id },
     data: payload
   });
 
-  return updateDoc;
+  return getUserProfileFromDB(user);
 };
 
 const deleteAccountFromDB = async (user: JwtPayload) => {
@@ -223,6 +285,9 @@ const deleteAccountFromDB = async (user: JwtPayload) => {
   if (isExistUser.image) {
     unlinkFile(isExistUser.image);
   }
+
+  const { invalidateUserAuthCache } = await import("../../middlewares/auth");
+  invalidateUserAuthCache(id);
 
   const deleteDoc = await prisma.user.delete({ where: { id } });
   return deleteDoc;
@@ -242,6 +307,9 @@ const deleteUserByAdminFromDB = async (id: string) => {
   if (isExistUser.image) {
     unlinkFile(isExistUser.image);
   }
+
+  const { invalidateUserAuthCache } = await import("../../middlewares/auth");
+  invalidateUserAuthCache(id);
 
   // Delete all user references (views, likes, comments, reset tokens) and the user record
   await prisma.$transaction([
@@ -268,6 +336,9 @@ const toggleUserStatusByAdminFromDB = async (id: string, status?: "active" | "de
 
   const nextStatus = status || (isExistUser.status === "active" ? "delete" : "active");
 
+  const { invalidateUserAuthCache } = await import("../../middlewares/auth");
+  invalidateUserAuthCache(id);
+
   const updated = await prisma.user.update({
     where: { id },
     data: { status: nextStatus }
@@ -283,12 +354,44 @@ const toggleUserStatusByAdminFromDB = async (id: string, status?: "active" | "de
   };
 };
 
+const updateProfileImageToDB = async (user: JwtPayload, imageUrl: string) => {
+  const { id } = user;
+  const isExistUser = await prisma.user.findUnique({ where: { id } });
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
+  }
+
+  // Delete previous custom uploaded avatar/image if not default placeholder
+  const { StorageAdapter } = await import("../../../helpers/storageAdapter");
+  if (isExistUser.image && !isExistUser.image.includes("ibb.co")) {
+    await StorageAdapter.deleteFile(isExistUser.image);
+  }
+  if (
+    isExistUser.avatar &&
+    !isExistUser.avatar.includes("ibb.co") &&
+    isExistUser.avatar !== isExistUser.image
+  ) {
+    await StorageAdapter.deleteFile(isExistUser.avatar);
+  }
+
+  await prisma.user.update({
+    where: { id },
+    data: {
+      image: imageUrl,
+      avatar: imageUrl
+    }
+  });
+
+  return getUserProfileFromDB(user);
+};
+
 export const UserService = {
   getAllUsersToDB,
   getUserByIdFromDB,
   createUserToDB,
   getUserProfileFromDB,
   updateProfileToDB,
+  updateProfileImageToDB,
   deleteAccountFromDB,
   deleteUserByAdminFromDB,
   toggleUserStatusByAdminFromDB

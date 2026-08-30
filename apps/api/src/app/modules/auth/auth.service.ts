@@ -154,20 +154,65 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  if (!oneTimeCode) {
+  const now = new Date();
+
+  // Check account lockout
+  if (isExistUser.authLockUntil && now < isExistUser.authLockUntil) {
+    const remainingMinutes = Math.ceil(
+      (isExistUser.authLockUntil.getTime() - now.getTime()) / 60000
+    );
     throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      "Please give the otp, check your email we send a code"
+      StatusCodes.TOO_MANY_REQUESTS,
+      `Too many failed OTP attempts. Account is temporarily locked. Please try again in ${remainingMinutes} minute(s).`
     );
   }
 
-  if (isExistUser.authOneTimeCode !== oneTimeCode) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "You provided wrong otp");
+  if (!oneTimeCode) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Please provide the OTP code sent to your email.");
   }
 
-  const date = new Date();
-  if (isExistUser.authExpireAt && date > isExistUser.authExpireAt) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Otp already expired, Please try again");
+  // Verify OTP match
+  if (isExistUser.authOneTimeCode !== oneTimeCode) {
+    const currentAttempts = (isExistUser.authOneTimeCodeAttempts || 0) + 1;
+    const maxAttempts = 5;
+
+    if (currentAttempts >= maxAttempts) {
+      // Lock account for 15 minutes and invalidate current OTP
+      await prisma.user.update({
+        where: { id: isExistUser.id },
+        data: {
+          authOneTimeCode: null,
+          authExpireAt: null,
+          authOneTimeCodeAttempts: currentAttempts,
+          authLockUntil: new Date(Date.now() + 15 * 60 * 1000)
+        }
+      });
+      throw new ApiError(
+        StatusCodes.TOO_MANY_REQUESTS,
+        "Maximum OTP attempts exceeded. Your account has been temporarily locked for 15 minutes for your security."
+      );
+    }
+
+    await prisma.user.update({
+      where: { id: isExistUser.id },
+      data: {
+        authOneTimeCodeAttempts: currentAttempts
+      }
+    });
+
+    const remainingAttempts = maxAttempts - currentAttempts;
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      `Invalid OTP. You have ${remainingAttempts} attempt(s) remaining.`
+    );
+  }
+
+  // Check expiration
+  if (isExistUser.authExpireAt && now > isExistUser.authExpireAt) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "OTP has expired. Please request a new verification code."
+    );
   }
 
   let message;
@@ -179,17 +224,21 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
       data: {
         verified: true,
         authOneTimeCode: null,
-        authExpireAt: null
+        authExpireAt: null,
+        authOneTimeCodeAttempts: 0,
+        authLockUntil: null
       }
     });
-    message = "Email verify successfully";
+    message = "Email verified successfully";
   } else {
     await prisma.user.update({
       where: { id: isExistUser.id },
       data: {
         authIsResetPassword: true,
         authOneTimeCode: null,
-        authExpireAt: null
+        authExpireAt: null,
+        authOneTimeCodeAttempts: 0,
+        authLockUntil: null
       }
     });
 

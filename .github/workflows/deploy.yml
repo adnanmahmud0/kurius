@@ -5,9 +5,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   # ─────────────────────────────────────────────
-  # JOB 1: Type-check the monorepo before deploy
+  # JOB 1: Type-check the monorepo before build
   # ─────────────────────────────────────────────
   typecheck:
     name: ✅ Type Check
@@ -19,7 +23,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
@@ -29,30 +33,80 @@ jobs:
         working-directory: apps/api
         run: npx prisma generate
         env:
-          # prisma generate only reads the schema — no real DB connection needed
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
 
       - name: Run type check
         run: npx turbo typecheck
 
   # ─────────────────────────────────────────────
-  # JOB 2: Deploy to Hostinger VPS via SSH
+  # JOB 2: Build & Push Lean Docker Images (GHCR)
+  # ─────────────────────────────────────────────
+  build-and-push:
+    name: 🐳 Build & Push Docker Images (Cloud)
+    needs: typecheck
+    runs-on: ubuntu-latest
+    outputs:
+      repo_owner: ${{ steps.repo_owner.outputs.owner }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Lowercase Repository Owner
+        id: repo_owner
+        run: echo "owner=${OWNER,,}" >> $GITHUB_OUTPUT
+        env:
+          OWNER: "${{ github.repository_owner }}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image (Multi-stage Slim)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ghcr.io/${{ steps.repo_owner.outputs.owner }}/kurius-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Web image (Next.js Standalone)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          build-args: |
+            NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          tags: ghcr.io/${{ steps.repo_owner.outputs.owner }}/kurius-web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────────
+  # JOB 3: Deploy Pre-built Images to VPS via SSH
   # ─────────────────────────────────────────────
   deploy:
-    name: 🌐 Deploy to Hostinger VPS
-    needs: typecheck
+    name: 🌐 Deploy Pre-built Containers to Hostinger VPS
+    needs: [typecheck, build-and-push]
     runs-on: ubuntu-latest
 
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
-          # ── All env vars are passed securely via GitHub Secrets ──
           DEPLOY_ENV: |
             NODE_ENV=production
             PORT=5000
             IP_ADDRESS=0.0.0.0
-            ENABLE_API_DOCS=true
+            ENABLE_API_DOCS=false
             BCRYPT_SALT_ROUNDS=10
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
@@ -72,185 +126,156 @@ jobs:
             POSTGRES_USER=postgres
             POSTGRES_DB=kurius_db
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-          # GitHub token for cloning private repo (auto-generated, no setup needed)
-          GH_DEPLOY_TOKEN: ${{ github.token }}
+            GH_REPOSITORY_OWNER=${{ needs.build-and-push.outputs.repo_owner }}
+          GH_DEPLOY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_OWNER_LOWER: ${{ needs.build-and-push.outputs.repo_owner }}
           GH_REPOSITORY: ${{ github.repository }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_PORT }}
-          envs: DEPLOY_ENV,GH_DEPLOY_TOKEN,GH_REPOSITORY
+          envs: DEPLOY_ENV,GH_DEPLOY_TOKEN,GH_ACTOR,GH_OWNER_LOWER,GH_REPOSITORY
+          timeout: 60s
           command_timeout: 30m
           script: |
             set -e
             export DEBIAN_FRONTEND=noninteractive
 
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo " [1/9] System packages & swap setup"
+            echo " [1/7] Disk space cleanup & swap removal"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-            # Create swap file to prevent OOM during Docker builds
-            if [ ! -f /swapfile ]; then
-              fallocate -l 2G /swapfile
-              chmod 600 /swapfile
-              mkswap /swapfile
-              swapon /swapfile
-              echo '/swapfile none swap sw 0 0' >> /etc/fstab
-              echo "✓ 2GB swap created"
-            else
-              echo "✓ Swap already exists"
+            # Reclaim 2GB swap space since compilation happens in GitHub Cloud
+            if [ -f /swapfile ]; then
+              echo "Reclaiming 2GB swap file..."
+              swapoff /swapfile 2>/dev/null || true
+              rm -f /swapfile
+              sed -i '/swapfile/d' /etc/fstab || true
+              echo "✓ 2GB swap space reclaimed"
             fi
 
             apt-get update -qq
 
-            # Install Docker if not present
+            # Ensure Docker is installed
             if ! command -v docker &> /dev/null; then
               echo "Installing Docker..."
               curl -fsSL https://get.docker.com | sh
               systemctl enable docker
               systemctl start docker
-              echo "✓ Docker installed"
-            else
-              echo "✓ Docker already installed: $(docker --version)"
             fi
 
-            # Install Nginx
+            # Ensure Nginx & Certbot are installed
             if ! command -v nginx &> /dev/null; then
               apt-get install -y -qq nginx
               systemctl enable nginx
               systemctl start nginx
-              echo "✓ Nginx installed"
-            else
-              echo "✓ Nginx already installed"
             fi
-
-            # Install Certbot
             if ! command -v certbot &> /dev/null; then
               apt-get install -y -qq certbot python3-certbot-nginx
-              echo "✓ Certbot installed"
-            else
-              echo "✓ Certbot already installed"
             fi
-
-            # Install git
             if ! command -v git &> /dev/null; then
               apt-get install -y -qq git
             fi
 
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo " [2/9] Clone / pull repository"
+            echo " [2/7] Setup deployment directory"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
             REPO_DIR="/opt/kurius"
-            # Authenticated URL — required for private repos
             REPO_URL="https://x-access-token:${GH_DEPLOY_TOKEN}@github.com/${GH_REPOSITORY}.git"
 
             if [ ! -d "$REPO_DIR/.git" ]; then
-              echo "First deploy — cloning repository..."
-              git clone "$REPO_URL" "$REPO_DIR"
-              echo "✓ Repository cloned"
+              git clone --depth 1 "$REPO_URL" "$REPO_DIR"
             else
-              echo "Pulling latest changes..."
               cd "$REPO_DIR"
-              # Update remote URL with fresh token on each deploy
               git remote set-url origin "$REPO_URL"
-              git fetch origin
+              git fetch --depth 1 origin main
               git reset --hard origin/main
-              echo "✓ Repository updated"
             fi
 
             cd "$REPO_DIR"
 
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo " [3/9] Write .env file from GitHub Secrets"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-            # Write .env safely — secrets are substituted by GitHub Actions before SSH
+            # Write .env safely from secrets
             printf '%s\n' "$DEPLOY_ENV" > .env
-            echo "✓ .env written ($(wc -l < .env) variables)"
+            echo "✓ .env written"
 
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo " [4/9] Build Docker images"
+            echo " [3/7] Pull pre-built images from GHCR"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-            docker compose -f docker-compose.prod.yml build
-            echo "✓ Docker images built"
+            # Authenticate with GitHub Container Registry
+            echo "$GH_DEPLOY_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
+
+            # Pull pre-compiled images (no building on VPS!)
+            GH_REPOSITORY_OWNER="$GH_OWNER_LOWER" docker compose -f docker-compose.prod.yml pull
+            echo "✓ Pre-built images pulled"
 
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo " [5/9] Start / restart containers"
+            echo " [4/7] Start containers with pre-built images"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            # Remove any orphan/standalone container naming conflicts
+            docker rm -f kurius_prod_web kurius_prod_api 2>/dev/null || true
+            GH_REPOSITORY_OWNER="$GH_OWNER_LOWER" docker compose -f docker-compose.prod.yml up -d --remove-orphans --force-recreate
             echo "✓ Containers started"
 
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo " [6/9] Wait for PostgreSQL to be ready"
+            echo " [5/7] Wait for services & database health"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-            echo "Waiting for database..."
             for i in $(seq 1 30); do
               if docker exec kurius_prod_postgres pg_isready -U postgres -d kurius_db -q; then
                 echo "✓ PostgreSQL is ready"
                 break
               fi
-              echo "  Waiting... ($i/30)"
+              echo "  Waiting for database... ($i/30)"
               sleep 2
             done
 
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo " [7/9] Run database migrations"
+            echo " [6/7] Configure Nginx & SSL"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-            docker exec kurius_prod_api sh -c "cd /app/apps/api && npx prisma migrate deploy"
-            echo "✓ Migrations applied"
-
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo " [8/9] Seed database (idempotent — safe to re-run)"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-            docker exec kurius_prod_api sh -c "cd /app/apps/api && npx tsx src/DB/seedAdmin.ts" || echo "⚠ Seed skipped or already applied"
-
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo " [9/9] Configure Nginx + SSL"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-            # Obtain / Expand SSL certificate — covers main domain + api + admin subdomains
-            certbot certonly --nginx \
-              --force-renewal \
-              --cert-name kuriusapp.cloud \
-              -d kuriusapp.cloud \
-              -d www.kuriusapp.cloud \
-              -d api.kuriusapp.cloud \
-              -d admin.kuriusapp.cloud \
-              --non-interactive \
-              --agree-tos \
-              --email ${{ secrets.EMAIL_USER }} || true
+            # Obtain or safely renew SSL without hitting Let's Encrypt weekly rate limits
+            if [ -f /etc/letsencrypt/live/kuriusapp.cloud/fullchain.pem ]; then
+              certbot renew --quiet || true
+            else
+              certbot certonly --nginx \
+                --cert-name kuriusapp.cloud \
+                -d kuriusapp.cloud \
+                -d www.kuriusapp.cloud \
+                -d api.kuriusapp.cloud \
+                -d admin.kuriusapp.cloud \
+                --non-interactive \
+                --agree-tos \
+                --keep-until-expiring \
+                --email ${{ secrets.EMAIL_USER }} || true
+            fi
 
             mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
             cp "$REPO_DIR/nginx/nginx.conf" /etc/nginx/sites-available/kurius
             ln -sf /etc/nginx/sites-available/kurius /etc/nginx/sites-enabled/kurius
             rm -f /etc/nginx/sites-enabled/default
             nginx -t && systemctl reload nginx
-            echo "✓ Nginx configured and reloaded"
+            echo "✓ Nginx reloaded"
 
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo " [10/10] Cleanup unused Docker images & build cache"
+            echo " [7/7] Deep disk cleanup (Reclaim all unused space)"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-            # Remove old unused Docker images (preserves currently running containers)
-            docker image prune -af || docker image prune -f
-            # Clear Docker builder layer cache
+            # Remove all dangling/old images & containers (preserves active volumes & running containers)
+            docker system prune -af --volumes=false || true
             docker builder prune -af || true
-            # Clean apt cache
-            apt-get clean
-            # Limit systemd journal logs to 50MB
-            journalctl --vacuum-size=50M || true
-            echo "✓ Disk cleanup completed"
+            apt-get clean || true
+            journalctl --vacuum-size=20M || true
 
             echo ""
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "  ✅  DEPLOYMENT COMPLETE!"
             echo "  🌐  https://admin.kuriusapp.cloud"
+            echo "  💾  Disk Usage Summary:"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            df -h /
             docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
