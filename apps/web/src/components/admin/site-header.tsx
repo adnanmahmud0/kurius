@@ -41,12 +41,12 @@ export function SiteHeader() {
       </div>
 
       <div className="flex items-center gap-3">
-        <Link href="/privacy" target="_blank">
+        <a href="https://kuriusapp.cloud/privacy" target="_blank" rel="noopener noreferrer">
           <Button variant="outline" size="sm" className="hidden gap-1.5 text-xs md:flex">
             <ExternalLink className="h-3.5 w-3.5" />
             Public Privacy
           </Button>
-        </Link>
+        </a>
         <AnimatedThemeToggler />
       </div>
     </header>
