@@ -180,6 +180,14 @@ class ProfileController extends GetxController {
         if (res.data != null) {
           userProfile.value = res.data;
           avatarUrl.value = res.data!.displayAvatar;
+
+          // Clear cached image memory so new image displays immediately
+          PaintingBinding.instance.imageCache.clear();
+          PaintingBinding.instance.imageCache.clearLiveImages();
+
+          // Auto reload full profile data from API
+          await loadProfile();
+
           final msg = (res.message != null && res.message!.isNotEmpty)
               ? res.message!
               : 'Profile image updated successfully';

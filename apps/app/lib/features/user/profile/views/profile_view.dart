@@ -157,22 +157,47 @@ class ProfileView extends GetView<ProfileController> {
                                   ),
                                 ],
                               ),
-                              child: CircleAvatar(
-                                radius: 48,
-                                backgroundColor: AppColors.pillBackground,
-                                backgroundImage: controller.avatarUrl.value.isNotEmpty
-                                    ? NetworkImage(controller.avatarUrl.value)
-                                    : null,
-                                child: controller.avatarUrl.value.isEmpty
-                                    ? Text(
-                                        name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 36,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppColors.primary,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  CircleAvatar(
+                                    key: ValueKey(controller.avatarUrl.value),
+                                    radius: 48,
+                                    backgroundColor: AppColors.pillBackground,
+                                    backgroundImage: controller.avatarUrl.value.isNotEmpty
+                                        ? NetworkImage(controller.avatarUrl.value)
+                                        : null,
+                                    child: controller.avatarUrl.value.isEmpty
+                                        ? Text(
+                                            name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 36,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.primary,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  if (controller.isUpdating.value)
+                                    Container(
+                                      width: 96,
+                                      height: 96,
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.45),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Center(
+                                        child: SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 3,
+                                            color: Colors.white,
+                                          ),
                                         ),
-                                      )
-                                    : null,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
 
