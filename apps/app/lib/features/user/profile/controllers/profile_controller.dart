@@ -173,15 +173,19 @@ class ProfileController extends GetxController {
               : null);
 
       if (repo != null) {
-        final res = await repo.updateProfile(
-          avatarFilePath: pickedFile.path,
+        final res = await repo.updateProfileImage(
+          imageFilePath: pickedFile.path,
         );
 
         if (res.data != null) {
           userProfile.value = res.data;
           avatarUrl.value = res.data!.displayAvatar;
+          final msg = (res.message != null && res.message!.isNotEmpty)
+              ? res.message!
+              : 'Profile image updated successfully';
+          editProfileSuccessMessage.value = msg;
           ErrorHandler.showSuccessSnackbar(
-            'Profile picture updated successfully!',
+            msg,
             title: 'Avatar Updated',
           );
         }

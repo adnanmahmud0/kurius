@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:kurius/core/constants/api_endpoints.dart';
 import 'package:kurius/core/network/api_response.dart';
 import 'package:kurius/core/storage/storage_service.dart';
 import 'package:kurius/data/models/auth/auth_requests.dart';
@@ -387,5 +388,21 @@ void main() {
     final controller = Get.put(LegalPolicyController(initialPolicyType: 'privacy'));
     expect(controller.policyType.value, 'privacy');
     expect(controller.screenTitle, 'Privacy Policy');
+  });
+
+  test('POST /user/profile/image endpoint and UserModel avatar update test', () {
+    expect(ApiEndpoints.updateProfileImage, '/api/v1/user/profile/image');
+
+    final userImageJson = {
+      "id": "u-img-123",
+      "email": "user@example.com",
+      "name": "Alex Smith",
+      "avatar": "/uploads/users/avatar-123.jpg",
+      "verified": true,
+    };
+
+    final user = UserModel.fromJson(userImageJson);
+    expect(user.id, "u-img-123");
+    expect(user.displayAvatar, contains("/uploads/users/avatar-123.jpg"));
   });
 }
