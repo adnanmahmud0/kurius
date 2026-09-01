@@ -20,6 +20,13 @@ router.get(
 );
 
 router.post(
+  "/",
+  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  uploadVideoFiles,
+  VideoController.createVideo
+);
+
+router.post(
   "/admin",
   auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
   uploadVideoFiles,

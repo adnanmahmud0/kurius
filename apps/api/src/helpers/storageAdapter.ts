@@ -64,7 +64,9 @@ export const uploadFile = async (
       if (!buffer) {
         throw new Error("File buffer is empty");
       }
-      const isVideo = file.mimetype.startsWith("video/");
+      const isVideo =
+        file.mimetype.startsWith("video/") ||
+        /\.(mp4|mkv|mov|webm|avi|flv|m4v|wmv)$/i.test(file.originalname || "");
       const result = await CloudinaryHelper.uploadToCloudinary(
         buffer,
         `kurius/${folder}`,
@@ -88,8 +90,10 @@ export const uploadFile = async (
   }
 
   // 2. Local Disk Storage
-  const ext =
-    path.extname(file.originalname) || (file.mimetype.startsWith("video/") ? ".mp4" : ".jpg");
+  const isVideo =
+    file.mimetype.startsWith("video/") ||
+    /\.(mp4|mkv|mov|webm|avi|flv|m4v|wmv)$/i.test(file.originalname || "");
+  const ext = path.extname(file.originalname || "") || (isVideo ? ".mp4" : ".jpg");
   const filename = `${uuidv4()}${ext}`;
   const targetDir = path.join(process.cwd(), "uploads", folder);
   ensureDir(targetDir);

@@ -57,9 +57,7 @@ export function useUploadVideo(onUploadProgress?: (progress: number) => void) {
   return useMutation({
     mutationFn: async (formData: FormData) => {
       const response = await api.post<ApiResponse<IVideo>>("/videos/admin", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data"
-        },
+        timeout: 0, // Disable 15s timeout for large video uploads
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total && onUploadProgress) {
             const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -94,9 +92,7 @@ export function useUpdateVideo() {
     }) => {
       if (formData instanceof FormData) {
         const response = await api.put<ApiResponse<IVideo>>(`/videos/admin/${id}`, formData, {
-          headers: {
-            "Content-Type": "multipart/form-data"
-          }
+          timeout: 0 // Disable timeout for media updates
         });
         return response.data;
       } else {

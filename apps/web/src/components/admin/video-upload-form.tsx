@@ -342,13 +342,7 @@ export function VideoUploadForm() {
             </Button>
             <Button
               type="submit"
-              disabled={
-                uploadVideoMutation.isPending ||
-                !videoFile ||
-                !title.trim() ||
-                !subtitle.trim() ||
-                !categoryId
-              }
+              disabled={uploadVideoMutation.isPending || !videoFile || !title.trim() || !categoryId}
               className="gap-2 font-semibold"
             >
               {uploadVideoMutation.isPending ? (
