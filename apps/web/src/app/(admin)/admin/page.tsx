@@ -133,7 +133,7 @@ export default function AdminDashboardPage() {
               Direct access to common administrative operations
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3 pt-1">
+          <CardContent className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
             <Link href="/admin/videos/upload">
               <div className="border-border hover:border-primary/40 hover:bg-accent/50 cursor-pointer rounded-lg border p-3 transition-all">
                 <Upload className="text-primary mb-1.5 h-5 w-5" />

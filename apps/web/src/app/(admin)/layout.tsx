@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 
+import { AdminSidebarProvider } from "@/components/admin/admin-sidebar-context";
 import { AppSidebar } from "@/components/admin/app-sidebar";
 import { SiteHeader } from "@/components/admin/site-header";
 
@@ -44,15 +45,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="bg-background text-foreground flex min-h-screen">
-      {/* Sidebar */}
-      <AppSidebar />
+    <AdminSidebarProvider>
+      <div className="bg-background text-foreground flex min-h-screen">
+        {/* Responsive Sidebar (docked on desktop, drawer on mobile) */}
+        <AppSidebar />
 
-      {/* Main Content Area */}
-      <div className="flex flex-1 flex-col pl-64">
-        <SiteHeader />
-        <main className="flex-1 overflow-y-auto p-8">{children}</main>
+        {/* Main Content Area */}
+        <div className="flex min-w-0 flex-1 flex-col md:pl-64">
+          <SiteHeader />
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">{children}</main>
+        </div>
       </div>
-    </div>
+    </AdminSidebarProvider>
   );
 }

@@ -86,7 +86,7 @@ export function StorageSettingsForm() {
   return (
     <Card className="border-border/80 mx-auto max-w-2xl border">
       <CardHeader className="border-border/60 border-b pb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-xl font-bold">Storage Provider Settings</CardTitle>
             <CardDescription className="text-muted-foreground mt-0.5 text-xs">

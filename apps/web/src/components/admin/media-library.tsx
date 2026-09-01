@@ -252,7 +252,7 @@ export function MediaLibrary() {
           </div>
 
           {/* Right: Storage Filter & View Toggler */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Select value={storageFilter} onValueChange={setStorageFilter}>
               <SelectTrigger className="h-9 w-36 text-xs">
                 <SelectValue placeholder="All Storage" />

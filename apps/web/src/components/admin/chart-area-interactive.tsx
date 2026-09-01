@@ -12,7 +12,7 @@ export function ChartAreaInteractive() {
 
   return (
     <Card className="border-border/80 border">
-      <CardHeader className="flex flex-row items-center justify-between pb-4">
+      <CardHeader className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2 text-base font-bold">
             <Activity className="text-primary h-5 w-5" />
@@ -50,7 +50,7 @@ export function ChartAreaInteractive() {
             As mobile and web users watch videos, view events are recorded with 24-hour window
             deduplication.
           </p>
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             <Badge variant="outline" className="bg-background text-xs">
               Views Tracking: <span className="ml-1 font-bold text-emerald-500">Active</span>
             </Badge>
