@@ -24,7 +24,7 @@ import { toast } from "sonner";
 
 import type { IVideo } from "@repo/types";
 
-import { getMediaUrl } from "@/lib/utils";
+import { getMediaUrl, getVideoThumbnail } from "@/lib/utils";
 
 import { useStorageSettings } from "@/hooks/use-storage-settings";
 import { useAdminVideos } from "@/hooks/use-videos";
@@ -324,13 +324,21 @@ export function MediaLibrary() {
               >
                 {asset.type === "video" ? (
                   <>
-                    <video
-                      src={getMediaUrl(asset.url)}
-                      poster={getMediaUrl(asset.videoRecord.thumbnailUrl)}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      preload="metadata"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                    {asset.videoRecord.thumbnailUrl || getVideoThumbnail(asset.url) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={getVideoThumbnail(asset.url, asset.videoRecord.thumbnailUrl)}
+                        alt={asset.title}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-black/80">
+                        <Film className="text-muted-foreground/40 h-8 w-8" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-70 transition-opacity group-hover:opacity-100">
                       <div className="bg-primary text-primary-foreground rounded-full p-2.5 shadow-lg">
                         <Play className="h-4 w-4 fill-current" />
                       </div>
@@ -340,8 +348,10 @@ export function MediaLibrary() {
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={getMediaUrl(asset.url)}
+                      src={getMediaUrl(asset.url, { width: 500 })}
                       alt={asset.title}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
@@ -468,15 +478,27 @@ export function MediaLibrary() {
                       className="bg-muted border-border relative h-12 w-16 cursor-pointer overflow-hidden rounded-md border"
                     >
                       {asset.type === "video" ? (
-                        <video
-                          src={getMediaUrl(asset.url)}
-                          className="h-full w-full object-cover"
-                        />
+                        asset.videoRecord.thumbnailUrl || getVideoThumbnail(asset.url) ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={getVideoThumbnail(asset.url, asset.videoRecord.thumbnailUrl)}
+                            alt={asset.title}
+                            loading="lazy"
+                            decoding="async"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-black/80">
+                            <Play className="text-primary h-4 w-4" />
+                          </div>
+                        )
                       ) : (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={getMediaUrl(asset.url)}
+                          src={getMediaUrl(asset.url, { width: 160 })}
                           alt={asset.title}
+                          loading="lazy"
+                          decoding="async"
                           className="h-full w-full object-cover"
                         />
                       )}
@@ -601,17 +623,23 @@ export function MediaLibrary() {
                   <video
                     key={selectedAsset.id}
                     src={getMediaUrl(selectedAsset.url)}
-                    poster={getMediaUrl(selectedAsset.videoRecord.thumbnailUrl)}
+                    poster={getVideoThumbnail(
+                      selectedAsset.url,
+                      selectedAsset.videoRecord.thumbnailUrl
+                    )}
                     controls
                     autoPlay
                     playsInline
+                    preload="metadata"
                     className="h-full w-full object-contain"
                   />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={getMediaUrl(selectedAsset.url)}
+                    src={getMediaUrl(selectedAsset.url, { width: 1200 })}
                     alt={selectedAsset.title}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-contain"
                   />
                 )}

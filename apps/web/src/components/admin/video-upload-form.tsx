@@ -149,6 +149,7 @@ export function VideoUploadForm() {
                     src={videoPreviewUrl}
                     controls
                     playsInline
+                    preload="metadata"
                     className="h-full w-full object-contain"
                   />
                 </div>

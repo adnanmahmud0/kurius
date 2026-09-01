@@ -23,6 +23,8 @@ import {
 
 import type { IUser } from "@repo/types";
 
+import { getMediaUrl } from "@/lib/utils";
+
 import { useAdminUsers, useDeleteUser, useToggleUserStatus } from "@/hooks/use-admin-users";
 
 import {
@@ -139,7 +141,12 @@ export function UserTable() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="border-border h-9 w-9 border">
-                            <AvatarImage src={user.avatar || undefined} alt={user.name || "User"} />
+                            <AvatarImage
+                              src={
+                                user.avatar ? getMediaUrl(user.avatar, { width: 80 }) : undefined
+                              }
+                              alt={user.name || "User"}
+                            />
                             <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
                               {user.name?.[0] || "U"}
                             </AvatarFallback>

@@ -1,3 +1,4 @@
+import fs from "fs";
 import path from "path";
 
 import compression from "compression";
@@ -32,8 +33,21 @@ app.use(
   })
 );
 
-// Gzip Compression for fast responses
-app.use(compression());
+// Gzip Compression for fast responses (excluding video/audio/media streams)
+app.use(
+  compression({
+    filter: (req: Request, res: Response) => {
+      const url = req.originalUrl || req.url || "";
+      if (
+        url.includes("/uploads/videos/") ||
+        /\.(mp4|webm|mkv|mov|avi|m4v|jpg|jpeg|png|webp|gif)$/i.test(url)
+      ) {
+        return false;
+      }
+      return compression.filter(req, res);
+    }
+  })
+);
 
 //morgan
 app.use(Morgan.successHandler);
@@ -78,6 +92,64 @@ initializePassport();
 app.use(passport.initialize());
 app.use(passport.session());
 
+// High-performance byte-range video streaming endpoint (HTTP 206 Partial Content)
+app.get("/uploads/videos/:filename", (req: Request, res: Response, next) => {
+  const safeFilename = path.basename(req.params.filename);
+  let filePath = path.join(process.cwd(), "uploads", "videos", safeFilename);
+  if (!fs.existsSync(filePath)) {
+    filePath = path.resolve(__dirname, "../uploads/videos", safeFilename);
+  }
+
+  if (!fs.existsSync(filePath)) {
+    return next();
+  }
+
+  const stat = fs.statSync(filePath);
+  const fileSize = stat.size;
+  const range = req.headers.range;
+
+  const ext = path.extname(safeFilename).toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".mov": "video/quicktime",
+    ".mkv": "video/x-matroska",
+    ".avi": "video/x-msvideo",
+    ".m4v": "video/mp4"
+  };
+  const contentType = mimeTypes[ext] || "video/mp4";
+
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+
+  if (range) {
+    const parts = range.replace(/bytes=/, "").split("-");
+    const start = parseInt(parts[0], 10);
+    const end = parts[1]
+      ? parseInt(parts[1], 10)
+      : Math.min(start + 2 * 1024 * 1024 - 1, fileSize - 1); // 2MB initial chunk for instant start
+    const chunksize = end - start + 1;
+
+    const file = fs.createReadStream(filePath, { start, end });
+    res.writeHead(StatusCodes.PARTIAL_CONTENT, {
+      "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+      "Accept-Ranges": "bytes",
+      "Content-Length": chunksize,
+      "Content-Type": contentType
+    });
+    file.pipe(res);
+  } else {
+    res.writeHead(StatusCodes.OK, {
+      "Content-Length": fileSize,
+      "Content-Type": contentType
+    });
+    fs.createReadStream(filePath).pipe(res);
+  }
+});
+
 //file retrieve & streaming with caching headers
 const uploadsPath = path.join(process.cwd(), "uploads");
 app.use(
@@ -86,7 +158,7 @@ app.use(
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-    res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400"); // 7 days cache
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     if (req.method === "OPTIONS") {
       return res.sendStatus(200);
     }
@@ -94,11 +166,13 @@ app.use(
   },
   express.static(uploadsPath, {
     acceptRanges: true,
-    maxAge: "7d"
+    maxAge: "365d",
+    immutable: true
   }),
   express.static(path.resolve(__dirname, "../uploads"), {
     acceptRanges: true,
-    maxAge: "7d"
+    maxAge: "365d",
+    immutable: true
   })
 );
 app.use(express.static("uploads"));

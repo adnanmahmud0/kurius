@@ -21,6 +21,8 @@ import {
   UserCheck
 } from "lucide-react";
 
+import { getMediaUrl } from "@/lib/utils";
+
 import { useAdminUserDetail, useDeleteUser, useToggleUserStatus } from "@/hooks/use-admin-users";
 
 import {
@@ -170,7 +172,10 @@ export function UserDetailPanel({ userId }: UserDetailPanelProps) {
       <Card className="border-border/80 overflow-hidden border">
         <div className="bg-muted/40 border-border flex flex-col items-center gap-4 border-b p-6 sm:flex-row sm:items-start sm:gap-6">
           <Avatar className="border-border h-20 w-20 border shadow-sm">
-            <AvatarImage src={user.avatar || undefined} alt={user.name || "User"} />
+            <AvatarImage
+              src={user.avatar ? getMediaUrl(user.avatar, { width: 160 }) : undefined}
+              alt={user.name || "User"}
+            />
             <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
               {user.name?.[0] || "U"}
             </AvatarFallback>

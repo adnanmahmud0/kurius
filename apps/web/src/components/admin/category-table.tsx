@@ -217,7 +217,7 @@ export function CategoryTable() {
                   <TableCell>
                     <Avatar className="h-10 w-10 rounded-lg border">
                       <AvatarImage
-                        src={cat.thumbnail ? getMediaUrl(cat.thumbnail) : undefined}
+                        src={cat.thumbnail ? getMediaUrl(cat.thumbnail, { width: 100 }) : undefined}
                         alt={cat.name}
                         className="object-cover"
                       />

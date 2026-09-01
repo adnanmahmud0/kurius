@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { getMediaUrl } from "@/lib/utils";
+import { getMediaUrl, getVideoThumbnail } from "@/lib/utils";
 
 import { useCategories } from "@/hooks/use-categories";
 import { useUpdateVideo, useVideo } from "@/hooks/use-videos";
@@ -226,9 +226,12 @@ export default function EditVideoPage() {
                 <video
                   key={newVideoPreviewUrl || video.id}
                   src={newVideoPreviewUrl || getMediaUrl(video.videoUrl)}
-                  poster={newThumbnailPreviewUrl || getMediaUrl(video.thumbnailUrl)}
+                  poster={
+                    newThumbnailPreviewUrl || getVideoThumbnail(video.videoUrl, video.thumbnailUrl)
+                  }
                   controls
                   playsInline
+                  preload="metadata"
                   className="h-full w-full object-contain"
                 />
               </div>
@@ -272,11 +275,18 @@ export default function EditVideoPage() {
             </CardHeader>
             <CardContent className="p-4 pt-1">
               <div className="border-border h-28 w-full overflow-hidden rounded-lg border bg-black shadow-xs">
-                {newThumbnailPreviewUrl || video.thumbnailUrl ? (
+                {newThumbnailPreviewUrl ||
+                video.thumbnailUrl ||
+                getVideoThumbnail(video.videoUrl) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={newThumbnailPreviewUrl || getMediaUrl(video.thumbnailUrl)}
+                    src={
+                      newThumbnailPreviewUrl ||
+                      getVideoThumbnail(video.videoUrl, video.thumbnailUrl)
+                    }
                     alt={video.title}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover"
                   />
                 ) : (

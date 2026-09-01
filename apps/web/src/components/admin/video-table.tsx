@@ -20,7 +20,7 @@ import {
 
 import type { IVideo } from "@repo/types";
 
-import { getMediaUrl } from "@/lib/utils";
+import { getMediaUrl, getVideoThumbnail } from "@/lib/utils";
 
 import { useCategories } from "@/hooks/use-categories";
 import { useAdminVideos, useDeleteVideo } from "@/hooks/use-videos";
@@ -149,11 +149,13 @@ export function VideoTable() {
                         onClick={() => setPreviewVideo(vid)}
                         className="group bg-muted border-border relative flex h-14 w-24 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border shadow-xs"
                       >
-                        {vid.thumbnailUrl ? (
+                        {vid.thumbnailUrl || getVideoThumbnail(vid.videoUrl) ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={getMediaUrl(vid.thumbnailUrl)}
+                            src={getVideoThumbnail(vid.videoUrl, vid.thumbnailUrl)}
                             alt={vid.title}
+                            loading="lazy"
+                            decoding="async"
                             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                           />
                         ) : (
@@ -294,10 +296,11 @@ export function VideoTable() {
                 <video
                   key={previewVideo.id}
                   src={getMediaUrl(previewVideo.videoUrl)}
-                  poster={getMediaUrl(previewVideo.thumbnailUrl)}
+                  poster={getVideoThumbnail(previewVideo.videoUrl, previewVideo.thumbnailUrl)}
                   controls
                   autoPlay
                   playsInline
+                  preload="metadata"
                   className="h-full w-full object-contain"
                 />
               </div>

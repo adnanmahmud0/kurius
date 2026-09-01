@@ -126,6 +126,14 @@ export const uploadFile = async (
 export const formatFileUrl = (url?: string | null): string | null => {
   if (!url) return null;
   if (url.startsWith("http://") || url.startsWith("https://")) {
+    if (
+      url.includes("res.cloudinary.com") &&
+      url.includes("/upload/") &&
+      !url.includes("f_auto,q_auto") &&
+      !url.includes("q_auto")
+    ) {
+      return url.replace("/upload/", "/upload/f_auto,q_auto/");
+    }
     return url;
   }
   const apiBase =
