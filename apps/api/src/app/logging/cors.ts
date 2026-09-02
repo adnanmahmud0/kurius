@@ -14,16 +14,12 @@ export const isOriginAllowed = (origin?: string): boolean => {
   if (!origin) return true; // allow non-browser clients (Postman/mobile/server-to-server)
   if (allowedOrigins.includes(origin)) return true;
 
-  // In production, enforce HTTPS for kuriusapp.cloud domains
-  if (
-    origin.startsWith("https://") &&
-    (origin.endsWith(".kuriusapp.cloud") ||
-      origin.includes("admin.kuriusapp.cloud") ||
-      origin.includes("api.kuriusapp.cloud") ||
-      origin.includes("kuriusapp.cloud"))
-  ) {
-    return true;
-  }
+  // NOTE: previously this also accepted any origin containing "kuriusapp.cloud"
+  // as a substring (origin.includes(...)), which let an attacker-controlled
+  // domain like "https://kuriusapp.cloud.evil.com" or "https://evilkuriusapp.cloud"
+  // pass the check. All legitimate production origins are already listed in
+  // allowedOrigins above, so the exact-match check is sufficient — removed the
+  // substring fallback instead of trying to patch it with endsWith().
 
   // Allow local network origins in development (10.x.x.x, 192.168.x.x, 172.x.x.x, localhost)
   if (process.env.NODE_ENV !== "production") {
