@@ -157,6 +157,19 @@ model StorageSetting {
   updatedAt DateTime @updatedAt
 }
 
+model EmailSetting {
+  id        String   @id @default(uuid())
+  provider  String   @default("smtp") // "smtp" | "resend"
+  host      String?  @default("smtp.resend.com")
+  port      Int?     @default(587)
+  secure    Boolean  @default(false)
+  user      String?  @default("resend")
+  pass      String?
+  fromEmail String?  @default("no-reply@kurius.cloud")
+  fromName  String?  @default("Kurius")
+  updatedAt DateTime @updatedAt
+}
+
 model LegalPolicy {
   id        String   @id @default(uuid())
   type      String   @unique // "privacy" | "terms"

@@ -12,6 +12,7 @@ import {
   HardDrive,
   Home,
   LogOut,
+  Mail,
   Quote,
   Shield,
   Upload,
@@ -73,6 +74,11 @@ const settingsNavItems = [
     title: "Storage Settings",
     href: "/admin/settings/storage",
     icon: HardDrive
+  },
+  {
+    title: "Email Settings",
+    href: "/admin/settings/email",
+    icon: Mail
   },
   {
     title: "Privacy Policy",

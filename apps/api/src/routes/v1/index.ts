@@ -3,6 +3,7 @@ import express from "express";
 import { AuthRoutes } from "../../app/modules/auth/auth.route";
 import { CategoryRoutes } from "../../app/modules/category/category.route";
 import { CommentRoutes } from "../../app/modules/comment/comment.route";
+import { EmailRoutes } from "../../app/modules/email/email.route";
 import { EngagementRoutes } from "../../app/modules/engagement/engagement.route";
 import { LegalRoutes } from "../../app/modules/legal/legal.route";
 import { MotivationalMessageRoutes } from "../../app/modules/motivational-message/motivational-message.route";
@@ -45,6 +46,10 @@ const apiRoutes = [
   {
     path: "/admin/storage",
     route: StorageRoutes
+  },
+  {
+    path: "/admin/email",
+    route: EmailRoutes
   },
   {
     path: "/legal",

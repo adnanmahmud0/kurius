@@ -18,7 +18,7 @@ const envPaths = [
 
 for (const envPath of envPaths) {
   if (fs.existsSync(envPath)) {
-    dotenv.config({ path: envPath });
+    dotenv.config({ path: envPath, override: true });
   }
 }
 
@@ -30,7 +30,7 @@ export default {
   port: process.env.PORT,
   bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
   branding: {
-    projectName: process.env.PROJECT_NAME,
+    projectName: process.env.PROJECT_NAME || "Kurius",
     logoUrl: process.env.BRAND_LOGO
   },
   jwt: {
@@ -40,7 +40,7 @@ export default {
     jwt_refresh_expire_in: process.env.JWT_REFRESH_EXPIRE_IN
   },
   email: {
-    from: process.env.EMAIL_FROM,
+    from: process.env.EMAIL_FROM || "no-reply@kurius.cloud",
     user: process.env.EMAIL_USER,
     port: process.env.EMAIL_PORT,
     host: process.env.EMAIL_HOST,

@@ -374,7 +374,7 @@ const updateVideoInDB = async (
 
   const updateData: any = {};
   if (payload.title) updateData.title = payload.title;
-  if (payload.subtitle) updateData.subtitle = payload.subtitle;
+  if (payload.subtitle !== undefined) updateData.subtitle = payload.subtitle;
   if (payload.categoryId) updateData.categoryId = payload.categoryId;
   if (payload.hashtags !== undefined) updateData.hashtags = parseHashtags(payload.hashtags);
   if (payload.status) updateData.status = payload.status;

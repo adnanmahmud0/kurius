@@ -20,6 +20,7 @@ const pageTitles: Record<string, string> = {
   "/admin/media": "Media Library",
   "/admin/users": "Users & Engagement Analytics",
   "/admin/settings/storage": "Storage Provider Configuration",
+  "/admin/settings/email": "Email & SMTP Configuration",
   "/admin/settings/privacy": "Privacy Policy Editor",
   "/admin/settings/terms": "Terms of Service Editor"
 };

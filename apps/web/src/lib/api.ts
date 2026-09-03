@@ -8,7 +8,6 @@ export const api = axios.create({
   baseURL: env.NEXT_PUBLIC_API_URL,
   timeout: 15_000,
   headers: {
-    "Content-Type": "application/json",
     Accept: "application/json"
   }
 });
@@ -20,6 +19,18 @@ api.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${token}`;
     }
   }
+
+  // When transmitting FormData, remove any explicit Content-Type so browser/Axios
+  // automatically calculates multipart/form-data; boundary=...
+  if (config.data instanceof FormData) {
+    if (config.headers) {
+      delete config.headers["Content-Type"];
+      if (typeof (config.headers as any).delete === "function") {
+        (config.headers as any).delete("Content-Type");
+      }
+    }
+  }
+
   return config;
 });
 

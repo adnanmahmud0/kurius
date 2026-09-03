@@ -1,7 +1,7 @@
 import config from "../config";
 import { ICreateAccount, IReportStatusEmail, IResetPassword } from "../types/emailTamplate";
 
-const getProjectName = () => config.branding.projectName;
+const getProjectName = () => config.branding.projectName || "Kurius";
 
 const getLogoUrl = () => config.branding.logoUrl || "";
 
@@ -168,7 +168,7 @@ const createAccount = (values: ICreateAccount) => {
 
   const bodyContent = `
     <p style="margin: 0 0 10px; color: #d1d5db;">
-      Hey ${values.name}, use the one-time passcode below to complete verification of your ${projectName} account.
+      Hey ${values.name}, use the one-time passcode below to activate your ${projectName} account.
     </p>
     <div class="otp-box">${values.otp}</div>
     <p style="margin: 8px 0 4px; color: #9ca3af;">
@@ -181,8 +181,8 @@ const createAccount = (values: ICreateAccount) => {
 
   const data = {
     to: values.email,
-    subject: `Verify your ${projectName} account`,
-    html: baseTemplate("Verify your account", bodyContent)
+    subject: `Activate your ${projectName} account`,
+    html: baseTemplate("Activate your account", bodyContent)
   };
 
   return data;

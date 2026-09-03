@@ -136,6 +136,19 @@ export interface IStorageSetting {
   updatedAt: string | Date;
 }
 
+export interface IEmailSetting {
+  id: string;
+  provider: "smtp" | "resend";
+  host?: string | null;
+  port?: number | null;
+  secure?: boolean;
+  user?: string | null;
+  fromEmail?: string | null;
+  fromName?: string | null;
+  hasPassword?: boolean;
+  updatedAt: string | Date;
+}
+
 export interface ILegalPolicy {
   id: string;
   type: "privacy" | "terms";
