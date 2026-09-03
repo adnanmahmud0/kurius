@@ -232,7 +232,7 @@ export function LegalPolicyEditor({ type }: LegalPolicyEditorProps) {
   };
 
   const isPrivacy = type === "privacy";
-  const publicUrl = `https://kuriusapp.cloud${isPrivacy ? "/privacy" : "/terms"}`;
+  const publicUrl = isPrivacy ? "/privacy" : "/terms";
 
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
   const charCount = content.length;
